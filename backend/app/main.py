@@ -4,6 +4,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from psycopg import Connection
 
 from app.core.database import get_db_connection
+from app.modules.wallet.errors import WalletError, wallet_error_handler
 from app.modules.wallet.router import router as wallet_router
 
 app = FastAPI(
@@ -20,6 +21,7 @@ def database_connection() -> Generator[Connection, None, None]:
         connection_generator.close()
 
 
+app.add_exception_handler(WalletError, wallet_error_handler)
 app.include_router(wallet_router, prefix="/api/v1")
 
 
