@@ -1,4 +1,4 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 from unittest.mock import MagicMock
 
 import psycopg
@@ -16,6 +16,7 @@ import app.modules.wallet.router as wallet_router
 def client():
     app.dependency_overrides.clear()
     app.dependency_overrides[get_current_user_id] = lambda: 42
+    app.dependency_overrides[get_db_connection] = lambda: MagicMock()
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()

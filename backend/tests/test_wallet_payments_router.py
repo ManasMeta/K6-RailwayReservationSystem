@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock
 
@@ -20,7 +20,7 @@ TICKET = {
     "pnr": "1000000001",
     "ticket_number": "NRRMS-1000000001",
     "qr_payload": "NRRMS|PNR=1000000001|TKT=NRRMS-1000000001|AMT=400.00",
-    "issued_at": datetime(2026, 11, 2, 9, 30, tzinfo=UTC),
+    "issued_at": datetime(2026, 11, 2, 9, 30, tzinfo=timezone.utc),
     "amount": Decimal("400.00"),
 }
 

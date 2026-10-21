@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from app.modules.wallet.ticket_pdf import render_qr_png, render_ticket_pdf
@@ -16,7 +16,7 @@ def test_render_ticket_pdf_returns_pdf_bytes():
         "pnr": "TEST1234",
         "ticket_number": "NRRMS-TEST1234",
         "qr_payload": "NRRMS|PNR=TEST1234|TKT=NRRMS-TEST1234|AMT=500.00",
-        "issued_at": datetime(2026, 11, 2, 10, 0, tzinfo=UTC),
+        "issued_at": datetime(2026, 11, 2, 10, 0, tzinfo=timezone.utc),
         "amount": Decimal("500.00"),
     }
     data = render_ticket_pdf(ticket)
