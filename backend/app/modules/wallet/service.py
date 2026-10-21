@@ -197,3 +197,128 @@ def create_mock_topup(
         "simulated": True,
         "replayed": False,
     }
+def get_wallet_transactions(
+    connection: Connection,
+    user_id: int,
+    limit: int = 20,
+    offset: int = 0,
+) -> dict:
+    """Return paginated ledger transactions for the authenticated user's wallet."""
+    if not 1 <= limit <= 100:
+        raise ValueError("Limit must be between 1 and 100")
+    if offset < 0:
+        raise ValueError("Offset cannot be negative")
+
+    wallet = connection.execute(
+        """
+        SELECT wallet_id
+        FROM wallets
+        WHERE user_id = %s
+        """,
+        (user_id,),
+    ).fetchone()
+
+    if wallet is None:
+        return {"items": [], "limit": limit, "offset": offset, "total": 0}
+
+    wallet_id = wallet["wallet_id"]
+
+    total_row = connection.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM ledger_txns lt
+        WHERE lt.status IN ('POSTED', 'REVERSED')
+          AND EXISTS (
+              SELECT 1
+              FROM ledger_entries le
+              WHERE le.ledger_txn_id = lt.ledger_txn_id
+                AND le.account_code = 'CUSTOMER_WALLET'
+          )
+          AND (
+              (lt.txn_type = 'TOPUP' AND EXISTS (
+                  SELECT 1
+                  FROM topups t
+                  WHERE t.ledger_txn_id = lt.ledger_txn_id
+                    AND t.wallet_id = %s
+              ))
+              OR
+              (lt.txn_type = 'REFUND' AND EXISTS (
+                  SELECT 1
+                  FROM refunds r
+                  WHERE r.ledger_txn_id = lt.ledger_txn_id
+                    AND r.wallet_id = %s
+              ))
+          )
+        """,
+        (wallet_id, wallet_id),
+    ).fetchone()
+
+    rows = connection.execute(
+        """
+        SELECT
+            lt.ledger_txn_id,
+            lt.txn_type,
+            lt.reference_type,
+            lt.reference_id,
+            lt.status,
+            lt.description,
+            lt.created_at,
+            COALESCE(SUM(le.amount) FILTER (
+                WHERE le.account_code = 'CUSTOMER_WALLET'
+                  AND le.entry_side = 'CREDIT'
+            ), 0) AS credited,
+            COALESCE(SUM(le.amount) FILTER (
+                WHERE le.account_code = 'CUSTOMER_WALLET'
+                  AND le.entry_side = 'DEBIT'
+            ), 0) AS debited
+        FROM ledger_txns lt
+        JOIN ledger_entries le
+          ON le.ledger_txn_id = lt.ledger_txn_id
+        WHERE lt.status IN ('POSTED', 'REVERSED')
+          AND (
+              (lt.txn_type = 'TOPUP' AND EXISTS (
+                  SELECT 1
+                  FROM topups t
+                  WHERE t.ledger_txn_id = lt.ledger_txn_id
+                    AND t.wallet_id = %s
+              ))
+              OR
+              (lt.txn_type = 'REFUND' AND EXISTS (
+                  SELECT 1
+                  FROM refunds r
+                  WHERE r.ledger_txn_id = lt.ledger_txn_id
+                    AND r.wallet_id = %s
+              ))
+          )
+        GROUP BY
+            lt.ledger_txn_id, lt.txn_type, lt.reference_type,
+            lt.reference_id, lt.status, lt.description, lt.created_at
+        ORDER BY lt.created_at DESC, lt.ledger_txn_id DESC
+        LIMIT %s OFFSET %s
+        """,
+        (wallet_id, wallet_id, limit, offset),
+    ).fetchall()
+
+    items = []
+    for row in rows:
+        credited = Decimal(row["credited"])
+        debited = Decimal(row["debited"])
+
+        items.append({
+            "ledger_txn_id": row["ledger_txn_id"],
+            "type": row["txn_type"],
+            "reference_type": row["reference_type"],
+            "reference_id": row["reference_id"],
+            "status": row["status"],
+            "description": row["description"],
+            "amount": credited if credited > 0 else debited,
+            "direction": "CREDIT" if credited > 0 else "DEBIT",
+            "created_at": row["created_at"],
+        })
+
+    return {
+        "items": items,
+        "limit": limit,
+        "offset": offset,
+        "total": total_row["total"],
+    }

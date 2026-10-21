@@ -154,3 +154,66 @@ def test_database_failure_can_be_rolled_back(db):
             (key,),
         )
         db.commit()
+
+
+def test_wallet_history_is_isolated_by_wallet_owner(db):
+    from app.modules.wallet.service import get_wallet_transactions
+
+    user_a = make_user(db)
+    user_b = make_user(db)
+
+    create_mock_topup(
+        db, user_a, Decimal("125.00"), f"history-a-{uuid4().hex}"
+    )
+    create_mock_topup(
+        db, user_b, Decimal("900.00"), f"history-b-{uuid4().hex}"
+    )
+
+    history_a = get_wallet_transactions(db, user_a)
+    history_b = get_wallet_transactions(db, user_b)
+
+    assert history_a["total"] == 1
+    assert len(history_a["items"]) == 1
+    assert history_a["items"][0]["type"] == "TOPUP"
+    assert history_a["items"][0]["amount"] == Decimal("125.00")
+    assert history_a["items"][0]["direction"] == "CREDIT"
+
+    assert history_b["total"] == 1
+    assert len(history_b["items"]) == 1
+    assert history_b["items"][0]["amount"] == Decimal("900.00")
+
+    assert history_a["items"][0]["ledger_txn_id"] != (
+        history_b["items"][0]["ledger_txn_id"]
+    )
+
+
+def test_wallet_history_pagination_uses_total_and_offset(db):
+    from app.modules.wallet.service import get_wallet_transactions
+
+    user_id = make_user(db)
+
+    for amount in ("10.00", "20.00", "30.00"):
+        create_mock_topup(
+            db,
+            user_id,
+            Decimal(amount),
+            f"history-page-{uuid4().hex}",
+        )
+
+    first_page = get_wallet_transactions(
+        db, user_id, limit=2, offset=0
+    )
+    second_page = get_wallet_transactions(
+        db, user_id, limit=2, offset=2
+    )
+
+    assert first_page["total"] == 3
+    assert len(first_page["items"]) == 2
+    assert [item["amount"] for item in first_page["items"]] == [
+        Decimal("30.00"),
+        Decimal("20.00"),
+    ]
+
+    assert second_page["total"] == 3
+    assert len(second_page["items"]) == 1
+    assert second_page["items"][0]["amount"] == Decimal("10.00")

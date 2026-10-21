@@ -37,3 +37,47 @@ def test_fetch_wallet_returns_none_when_missing():
     assert result is None
     args = connection.execute.call_args.args
     assert args[1] == (42,)
+
+
+def test_wallet_transactions_returns_empty_when_wallet_missing():
+    from app.modules.wallet.service import get_wallet_transactions
+
+    connection = MagicMock()
+    connection.execute.return_value.fetchone.return_value = None
+
+    result = get_wallet_transactions(connection, 42)
+
+    assert result == {
+        "items": [],
+        "limit": 20,
+        "offset": 0,
+        "total": 0,
+    }
+    connection.execute.assert_called_once()
+    assert connection.execute.call_args.args[1] == (42,)
+
+
+def test_wallet_transactions_rejects_invalid_limit():
+    import pytest
+
+    from app.modules.wallet.service import get_wallet_transactions
+
+    connection = MagicMock()
+
+    with pytest.raises(ValueError, match="Limit must be between 1 and 100"):
+        get_wallet_transactions(connection, 42, limit=101)
+
+    connection.execute.assert_not_called()
+
+
+def test_wallet_transactions_rejects_negative_offset():
+    import pytest
+
+    from app.modules.wallet.service import get_wallet_transactions
+
+    connection = MagicMock()
+
+    with pytest.raises(ValueError, match="Offset cannot be negative"):
+        get_wallet_transactions(connection, 42, offset=-1)
+
+    connection.execute.assert_not_called()
