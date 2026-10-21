@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: nrrms_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nrrms_test
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d nrrms_test']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nrrms_backend
+    restart: always
+    ports:
+      - '8000:8000'
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/nrrms_test
+      JWT_SECRET: ci-only-secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nrrms_frontend
+    ports:
+      - '5173:5173'
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
