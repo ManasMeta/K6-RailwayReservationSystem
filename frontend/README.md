@@ -1,10 +1,18 @@
-# G5 frontend (Mangesh)
+# Frontend
 
-Create the React + Vite TypeScript app here and implement:
-1. Wallet balance and statement
-2. Simulated UPI top-up (send `Idempotency-Key`)
-3. Pay reservation from wallet
-4. E-ticket page with QR and PDF download
-5. Refund history
+React + Vite + TypeScript, TanStack Query for server data.
 
-Use the shared API prefix `/api/v1`. Do not put secrets or API keys in frontend code.
+```bash
+npm ci
+npm run dev      # http://localhost:5173, /api is proxied to http://localhost:8000
+npm run lint && npm test && npm run build
+```
+
+One folder per group under `src/features/`:
+
+| Folder | Group | Pages |
+|---|---|---|
+| `network/` | G2 | Journey search (Direct / One change), train timetable |
+| `wallet/` | G5 | Wallet and statement, simulated UPI top-up, pay from wallet, e-ticket with QR and PDF, refunds |
+
+Routes live in `src/App.tsx`. `src/api/client.ts` (axios + bearer token) belongs to G1. Never put secrets or API keys in frontend code.
