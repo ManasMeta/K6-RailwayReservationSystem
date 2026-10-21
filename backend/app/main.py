@@ -10,7 +10,7 @@ from app.modules.wallet.errors import WalletError, wallet_error_handler
 from app.modules.wallet.router import router as wallet_router
 
 app = FastAPI(
-    title="NRRMS",
+    title="Yatrio",
     version="0.1.0",
 )
 

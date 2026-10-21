@@ -46,7 +46,7 @@ describe("PayReservationPage", () => {
       pnr: quote.pnr,
       amount: "400.00",
       balance: "600.00",
-      ticket_number: "NRRMS-1000000001",
+      ticket_number: "YTR-1000000001",
       replayed: false,
     });
     setup();

@@ -60,7 +60,7 @@ BEGIN
 
     SELECT * INTO r FROM pay_reservation(v_user, '1000000001');
     IF r.o_amount <> 400.00 OR r.o_balance <> 600.00 OR r.o_replayed
-       OR r.o_ticket_number <> 'NRRMS-1000000001' THEN
+       OR r.o_ticket_number <> 'YTR-1000000001' THEN
         RAISE EXCEPTION 'first payment wrong: %', r;
     END IF;
     IF (SELECT status FROM reservations WHERE pnr = '1000000001') <> 'CONFIRMED' THEN

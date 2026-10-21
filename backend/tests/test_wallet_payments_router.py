@@ -18,8 +18,8 @@ from app.modules.wallet.service import (
 
 TICKET = {
     "pnr": "1000000001",
-    "ticket_number": "NRRMS-1000000001",
-    "qr_payload": "NRRMS|PNR=1000000001|TKT=NRRMS-1000000001|AMT=400.00",
+    "ticket_number": "YTR-1000000001",
+    "qr_payload": "YATRIO|PNR=1000000001|TKT=YTR-1000000001|AMT=400.00",
     "issued_at": datetime(2026, 11, 2, 9, 30, tzinfo=UTC),
     "amount": Decimal("400.00"),
 }
@@ -50,7 +50,7 @@ def test_pay_returns_payment_and_forwards_idempotency_key(client, connection, mo
             "pnr": pnr,
             "amount": Decimal("400.00"),
             "balance": Decimal("600.00"),
-            "ticket_number": "NRRMS-" + pnr,
+            "ticket_number": "YTR-" + pnr,
             "replayed": False,
         }
 
@@ -62,7 +62,7 @@ def test_pay_returns_payment_and_forwards_idempotency_key(client, connection, mo
 
     assert response.status_code == 200
     assert response.json()["balance"] == "600.00"
-    assert response.json()["ticket_number"] == "NRRMS-1000000001"
+    assert response.json()["ticket_number"] == "YTR-1000000001"
     assert calls == [(42, "1000000001", "pay-key-123")]
     connection.commit.assert_called_once()
 
@@ -143,7 +143,7 @@ def test_ticket_json_pdf_and_qr(client, monkeypatch):
     pdf = client.get("/api/v1/tickets/1000000001.pdf")
     qr = client.get("/api/v1/tickets/1000000001/qr.png")
 
-    assert details["ticket_number"] == "NRRMS-1000000001"
+    assert details["ticket_number"] == "YTR-1000000001"
     assert "qr_payload" not in details
     assert pdf.status_code == 200
     assert pdf.headers["content-type"] == "application/pdf"

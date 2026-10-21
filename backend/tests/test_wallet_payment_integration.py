@@ -83,7 +83,7 @@ def test_payment_debits_wallet_confirms_reservation_and_issues_ticket(db):
     assert result["amount"] == Decimal("400.00")
     assert result["balance"] == Decimal("600.00")
     assert result["replayed"] is False
-    assert result["ticket_number"] == f"NRRMS-{pnr}"
+    assert result["ticket_number"] == f"YTR-{pnr}"
     assert db.execute("SELECT status FROM reservations WHERE pnr = %s", (pnr,)).fetchone()[
         "status"
     ] == "CONFIRMED"

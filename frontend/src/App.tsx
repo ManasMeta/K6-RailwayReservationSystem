@@ -11,7 +11,7 @@ export function App() {
   return (
     <>
       <header className="topbar">
-        <Link to="/" className="brand">NRRMS</Link>
+        <Link to="/" className="brand">Yatrio</Link>
         <nav aria-label="Main">
           <Link to="/">Search trains</Link>
           <Link to="/wallet">Wallet</Link>

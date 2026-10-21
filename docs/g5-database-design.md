@@ -51,14 +51,14 @@ The `wallets.balance` field is a cached current balance for fast reads. Every ba
 4. A retry with the same idempotency key must return the original result rather than apply the amount twice.
 5. Do not treat HTTP 501 scaffold endpoints as implemented financial operations.
 
-## Payments, refunds and tickets (migrations 0510-0516)
+## Payments, refunds and tickets (migrations 0510-0517)
 
 | Object | Purpose |
 |---|---|
 | `payments` | One wallet payment per PNR; links wallet and ledger transaction |
 | `refund_rules` | Refund percent by hours before departure (48h: 90%, 12h: 75%, 4h: 50%, below: 0%); edit rows to change policy |
 | `refund_amount(fare, hours_before, full)` | Applies the tier; `full` (railway cancelled the run) refunds 100% |
-| `pay_reservation(user_id, pnr, idempotency_key)` | Locks the wallet row `FOR UPDATE`, then the reservation; checks owner, status and balance; writes balanced ledger entries, updates the balance, records the payment, calls G4's `confirm_reservation(pnr)` and issues the e-ticket. A retry returns the original payment. Errors: `NR001` insufficient funds, `NR002` not found / not yours, `NR003` not payable |
+| `pay_reservation(user_id, pnr, idempotency_key)` (0513; 0517 sets the `YTR-<pnr>` ticket number) | Locks the wallet row `FOR UPDATE`, then the reservation; checks owner, status and balance; writes balanced ledger entries, updates the balance, records the payment, calls G4's `confirm_reservation(pnr)` and issues the e-ticket. A retry returns the original payment. Errors: `NR001` insufficient funds, `NR002` not found / not yours, `NR003` not payable |
 | `fn_create_refund_on_cancellation()` | Trigger function for G4's `cancellations`: refund through a balanced ledger transaction, capped at the amount paid, idempotent per cancellation, nothing for unpaid holds |
 | `attach_cancellation_refund_trigger()` | Attaches the trigger once `cancellations` exists (migration 0515 tries it; run it again after G4 merges if it returned false) |
 | `v_wallet_statement` | Top-ups, payments and refunds with `SUM(...) OVER (PARTITION BY wallet_id ORDER BY posted_at, ledger_txn_id)` running balance |
