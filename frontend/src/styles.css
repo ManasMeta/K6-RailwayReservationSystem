@@ -47,6 +47,7 @@ code { font-size: 0.8em; background: var(--bg); border: 1px solid var(--line); b
   padding: 0.75rem 1rem; background: var(--surface); border-bottom: 1px solid var(--line);
 }
 .brand { font-weight: 800; letter-spacing: 0.08em; text-decoration: none; color: var(--brand); }
+.topbar nav { display: flex; gap: 1rem; }
 .topbar nav a { text-decoration: none; color: var(--muted); }
 .topbar nav a:hover { color: var(--ink); }
 
@@ -123,3 +124,35 @@ th, td { text-align: left; padding: 0.55rem 0.8rem; border-bottom: 1px solid var
 tbody th { font-weight: 600; }
 thead th { font-size: 0.8rem; color: var(--muted); }
 tbody tr:last-child > * { border-bottom: 0; }
+
+/* G5 wallet and ticketing */
+.page.narrow { max-width: 34rem; }
+h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
+.card h2 { margin-top: 0; }
+.wallet-top { display: grid; gap: 1rem; margin-bottom: 0.5rem; }
+@media (min-width: 44rem) { .wallet-top { grid-template-columns: 1fr 1.4fr; align-items: start; } }
+.balance { display: flex; flex-direction: column; gap: 0.25rem; }
+.balance-amount { font-size: 2.2rem; font-variant-numeric: tabular-nums; color: var(--brand); }
+.topup { display: flex; flex-direction: column; gap: 0.75rem; }
+.topup p { margin: 0; }
+.presets { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.presets button {
+  background: var(--bg); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 999px; padding: 0.3rem 0.9rem;
+}
+.presets button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.success { color: #1e7a46; }
+@media (prefers-color-scheme: dark) { .success { color: #6fd39a; } }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.credit { color: #1e7a46; }
+.debit { color: var(--danger); }
+@media (prefers-color-scheme: dark) { .credit { color: #6fd39a; } }
+.pager { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 0.75rem; }
+.pager button { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 0.35rem 0.9rem; }
+.pager button:disabled { opacity: 0.5; cursor: default; }
+.summary { margin: 0 0 1rem; display: grid; gap: 0.6rem; }
+.summary > div { display: flex; justify-content: space-between; gap: 1rem; border-bottom: 1px solid var(--line); padding-bottom: 0.5rem; }
+.summary dt { color: var(--muted); }
+.summary dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ticket .qr { display: flex; justify-content: center; margin: 1rem 0; }
+.ticket .qr img { background: #fff; padding: 0.5rem; border-radius: 8px; }
