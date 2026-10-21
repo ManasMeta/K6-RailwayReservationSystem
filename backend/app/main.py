@@ -1,4 +1,4 @@
-﻿from collections.abc import Generator
+from collections.abc import Generator
 
 from fastapi import Depends, FastAPI, HTTPException
 from psycopg import Connection
