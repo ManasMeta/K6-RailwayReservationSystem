@@ -8,6 +8,9 @@
 - `refunds`: refund history.
 - `e_tickets`: issued ticket metadata and QR payload.
 
+## Money flow objects
+`payments`, `refund_rules`, `refund_amount()`, `pay_reservation()`, the cancellation refund trigger and `v_wallet_statement` are documented in `docs/g5-database-design.md`.
+
 ## Integration blockers to resolve with G1/G4
 1. Confirm G1's actual user primary key and table name.
 2. Confirm G4's PNR type and reservation schema.
