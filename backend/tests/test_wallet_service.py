@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import MagicMock
 
@@ -81,3 +81,47 @@ def test_wallet_transactions_rejects_negative_offset():
         get_wallet_transactions(connection, 42, offset=-1)
 
     connection.execute.assert_not_called()
+
+
+def test_create_mock_topup_replays_existing_transaction():
+    from app.modules.wallet.service import create_mock_topup
+
+    connection = MagicMock()
+    # First query is advisory lock, second is checking existing topup
+    connection.execute.return_value.fetchone.return_value = {
+        "topup_id": 10,
+        "wallet_id": 5,
+        "amount": Decimal("250.00"),
+        "status": "COMPLETED",
+        "provider_reference": "MOCK-UPI-12345678",
+        "user_id": 42,
+        "balance": Decimal("500.00"),
+        "currency": "INR",
+    }
+
+    result = create_mock_topup(connection, 42, Decimal("250.00"), "idemp-key-1234")
+
+    assert result["replayed"] is True
+    assert result["topup_id"] == 10
+    assert result["amount"] == Decimal("250.00")
+    assert result["balance"] == Decimal("500.00")
+
+
+def test_create_mock_topup_raises_conflict_on_mismatched_amount():
+    import pytest
+    from app.modules.wallet.service import IdempotencyConflict, create_mock_topup
+
+    connection = MagicMock()
+    connection.execute.return_value.fetchone.return_value = {
+        "topup_id": 10,
+        "wallet_id": 5,
+        "amount": Decimal("100.00"),  # existing is 100, but request is 250
+        "status": "COMPLETED",
+        "provider_reference": "MOCK-UPI-12345678",
+        "user_id": 42,
+        "balance": Decimal("500.00"),
+        "currency": "INR",
+    }
+
+    with pytest.raises(IdempotencyConflict, match="different request details"):
+        create_mock_topup(connection, 42, Decimal("250.00"), "idemp-key-1234")
