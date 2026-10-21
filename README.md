@@ -61,3 +61,24 @@ git push -u origin group/g5-wallet
 ```
 
 If Git says `origin` already exists, skip `git remote add origin ...`. GitHub may require you to sign in or have write access to the repository. The connected GitHub integration in this session returned HTTP 403 when attempting to create a file, so the starter is supplied as a ZIP for a repository member with write permission to push.
+
+---
+
+# G2 — Rail Network & Journey Planner
+
+Group: G2 (Shambhavi, Sanskar) · Branch: `group/g2-network`
+
+Stations, trains and timetables imported from `Train_details_22122017.csv`, plus direct and one-change journey search. Full notes (tables, import pipeline, SQL functions, EXPLAIN results, endpoints, tests): [docs/g2-database-design.md](docs/g2-database-design.md).
+
+Quick start (PostgreSQL 16 via Docker Compose, backend on Python 3.12, frontend on Node 20+):
+
+```bash
+docker compose up -d db
+for f in db/migrations/0200_g2_network/*.sql; do docker exec -i nrrms-postgres psql -U postgres -d nrrms -v ON_ERROR_STOP=1 < "$f"; done
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nrrms
+python db/import/load_sample.py
+uvicorn app.main:app --app-dir backend --reload          # http://localhost:8000/docs
+cd frontend && npm ci && npm run dev                      # http://localhost:5173
+```
+
+The implementation plan is in [docs/](docs/Railway%20Reservation%20System%20Implementation%20Plan.pdf).
