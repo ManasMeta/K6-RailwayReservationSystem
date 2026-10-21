@@ -6,10 +6,11 @@ from psycopg import Connection
 from app.core.database import get_db_connection
 from app.modules.network.errors import NetworkError, network_error_handler
 from app.modules.network.router import router as network_router
+from app.modules.wallet.errors import WalletError, wallet_error_handler
 from app.modules.wallet.router import router as wallet_router
 
 app = FastAPI(
-    title="NRRMS G5 Wallet & Ticketing",
+    title="NRRMS",
     version="0.1.0",
 )
 
@@ -23,6 +24,7 @@ def database_connection() -> Generator[Connection, None, None]:
 
 
 app.add_exception_handler(NetworkError, network_error_handler)
+app.add_exception_handler(WalletError, wallet_error_handler)
 app.include_router(network_router, prefix="/api/v1")
 app.include_router(wallet_router, prefix="/api/v1")
 

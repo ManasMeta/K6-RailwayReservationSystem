@@ -1,5 +1,6 @@
 ﻿from decimal import Decimal
 
+import psycopg
 from psycopg import Connection
 
 MAX_AMOUNT = Decimal("99999999.99")
@@ -197,24 +198,30 @@ def create_mock_topup(
         "simulated": True,
         "replayed": False,
     }
+
+
+
+_KIND_REFERENCE_TYPE = {
+    "TOPUP": "TOPUP",
+    "PAYMENT": "RESERVATION",
+    "REFUND": "CANCELLATION",
+}
+
+
 def get_wallet_transactions(
     connection: Connection,
     user_id: int,
     limit: int = 20,
     offset: int = 0,
 ) -> dict:
-    """Return paginated ledger transactions for the authenticated user's wallet."""
+    """Paginated statement (newest first) with the running balance after each row."""
     if not 1 <= limit <= 100:
         raise ValueError("Limit must be between 1 and 100")
     if offset < 0:
         raise ValueError("Offset cannot be negative")
 
     wallet = connection.execute(
-        """
-        SELECT wallet_id
-        FROM wallets
-        WHERE user_id = %s
-        """,
+        "SELECT wallet_id FROM wallets WHERE user_id = %s",
         (user_id,),
     ).fetchone()
 
@@ -224,96 +231,36 @@ def get_wallet_transactions(
     wallet_id = wallet["wallet_id"]
 
     total_row = connection.execute(
-        """
-        SELECT COUNT(*) AS total
-        FROM ledger_txns lt
-        WHERE lt.status IN ('POSTED', 'REVERSED')
-          AND EXISTS (
-              SELECT 1
-              FROM ledger_entries le
-              WHERE le.ledger_txn_id = lt.ledger_txn_id
-                AND le.account_code = 'CUSTOMER_WALLET'
-          )
-          AND (
-              (lt.txn_type = 'TOPUP' AND EXISTS (
-                  SELECT 1
-                  FROM topups t
-                  WHERE t.ledger_txn_id = lt.ledger_txn_id
-                    AND t.wallet_id = %s
-              ))
-              OR
-              (lt.txn_type = 'REFUND' AND EXISTS (
-                  SELECT 1
-                  FROM refunds r
-                  WHERE r.ledger_txn_id = lt.ledger_txn_id
-                    AND r.wallet_id = %s
-              ))
-          )
-        """,
-        (wallet_id, wallet_id),
+        "SELECT COUNT(*) AS total FROM v_wallet_statement WHERE wallet_id = %s",
+        (wallet_id,),
     ).fetchone()
 
     rows = connection.execute(
         """
-        SELECT
-            lt.ledger_txn_id,
-            lt.txn_type,
-            lt.reference_type,
-            lt.reference_id,
-            lt.status,
-            lt.description,
-            lt.created_at,
-            COALESCE(SUM(le.amount) FILTER (
-                WHERE le.account_code = 'CUSTOMER_WALLET'
-                  AND le.entry_side = 'CREDIT'
-            ), 0) AS credited,
-            COALESCE(SUM(le.amount) FILTER (
-                WHERE le.account_code = 'CUSTOMER_WALLET'
-                  AND le.entry_side = 'DEBIT'
-            ), 0) AS debited
-        FROM ledger_txns lt
-        JOIN ledger_entries le
-          ON le.ledger_txn_id = lt.ledger_txn_id
-        WHERE lt.status IN ('POSTED', 'REVERSED')
-          AND (
-              (lt.txn_type = 'TOPUP' AND EXISTS (
-                  SELECT 1
-                  FROM topups t
-                  WHERE t.ledger_txn_id = lt.ledger_txn_id
-                    AND t.wallet_id = %s
-              ))
-              OR
-              (lt.txn_type = 'REFUND' AND EXISTS (
-                  SELECT 1
-                  FROM refunds r
-                  WHERE r.ledger_txn_id = lt.ledger_txn_id
-                    AND r.wallet_id = %s
-              ))
-          )
-        GROUP BY
-            lt.ledger_txn_id, lt.txn_type, lt.reference_type,
-            lt.reference_id, lt.status, lt.description, lt.created_at
-        ORDER BY lt.created_at DESC, lt.ledger_txn_id DESC
+        SELECT ledger_txn_id, kind, reference_id, description,
+               signed_amount, posted_at, balance_after
+        FROM v_wallet_statement
+        WHERE wallet_id = %s
+        ORDER BY posted_at DESC, ledger_txn_id DESC
         LIMIT %s OFFSET %s
         """,
-        (wallet_id, wallet_id, limit, offset),
+        (wallet_id, limit, offset),
     ).fetchall()
 
     items = []
     for row in rows:
-        credited = Decimal(row["credited"])
-        debited = Decimal(row["debited"])
-
+        signed = Decimal(row["signed_amount"])
         items.append({
             "ledger_txn_id": row["ledger_txn_id"],
-            "type": row["txn_type"],
-            "reference_type": row["reference_type"],
+            "type": row["kind"],
+            "reference_type": _KIND_REFERENCE_TYPE[row["kind"]],
             "reference_id": row["reference_id"],
-            "status": row["status"],
+            "status": "POSTED",
             "description": row["description"],
-            "amount": credited if credited > 0 else debited,
-            "direction": "CREDIT" if credited > 0 else "DEBIT",
-            "created_at": row["created_at"],
+            "amount": abs(signed),
+            "direction": "CREDIT" if signed > 0 else "DEBIT",
+            "balance_after": Decimal(row["balance_after"]),
+            "created_at": row["posted_at"],
         })
 
     return {
@@ -322,3 +269,140 @@ def get_wallet_transactions(
         "offset": offset,
         "total": total_row["total"],
     }
+
+
+class ReservationNotFound(Exception):
+    """The PNR does not exist or belongs to someone else."""
+
+
+class ReservationNotPayable(Exception):
+    """The reservation is not waiting for payment."""
+
+
+class InsufficientFunds(Exception):
+    """The wallet balance is lower than the reservation fare."""
+
+
+class TicketNotFound(Exception):
+    """No e-ticket was issued for this PNR and user."""
+
+
+_PAY_ERRORS = {
+    "NR001": InsufficientFunds,
+    "NR002": ReservationNotFound,
+    "NR003": ReservationNotPayable,
+}
+
+
+def pay_reservation(
+    connection: Connection,
+    user_id: int,
+    pnr: str,
+    idempotency_key: str | None = None,
+) -> dict:
+    """Pay a PENDING_PAYMENT reservation from the wallet (all work is in pay_reservation())."""
+    try:
+        row = connection.execute(
+            "SELECT * FROM pay_reservation(%s, %s, %s)",
+            (user_id, pnr, idempotency_key),
+        ).fetchone()
+    except psycopg.Error as exc:
+        error = _PAY_ERRORS.get(getattr(exc, "sqlstate", None))
+        if error is None:
+            raise
+        message = exc.diag.message_primary or str(exc)
+        if error is InsufficientFunds and exc.diag.message_detail:
+            message = f"{message} ({exc.diag.message_detail})"
+        raise error(message) from exc
+
+    return {
+        "payment_id": row["o_payment_id"],
+        "pnr": row["o_pnr"],
+        "amount": Decimal(row["o_amount"]),
+        "balance": Decimal(row["o_balance"]),
+        "ticket_number": row["o_ticket_number"],
+        "replayed": row["o_replayed"],
+    }
+
+
+def get_payment_quote(connection: Connection, user_id: int, pnr: str) -> dict:
+    """What the user would pay for a reservation of theirs (G4 owns reservations)."""
+    row = connection.execute(
+        """
+        SELECT r.pnr, r.total_fare, r.status,
+               COALESCE(w.balance, 0) AS balance
+        FROM reservations r
+        LEFT JOIN wallets w ON w.user_id = r.user_id
+        WHERE r.pnr = %s AND r.user_id = %s
+        """,
+        (pnr, user_id),
+    ).fetchone()
+    if row is None:
+        raise ReservationNotFound(f"Reservation {pnr} was not found")
+
+    return {
+        "pnr": row["pnr"],
+        "amount": Decimal(row["total_fare"]),
+        "status": row["status"],
+        "balance": Decimal(row["balance"]),
+        "payable": row["status"] == "PENDING_PAYMENT",
+    }
+
+
+def get_refunds(
+    connection: Connection,
+    user_id: int,
+    limit: int = 20,
+    offset: int = 0,
+) -> dict:
+    if not 1 <= limit <= 100:
+        raise ValueError("Limit must be between 1 and 100")
+    if offset < 0:
+        raise ValueError("Offset cannot be negative")
+
+    total = connection.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM refunds r JOIN wallets w ON w.wallet_id = r.wallet_id
+        WHERE w.user_id = %s
+        """,
+        (user_id,),
+    ).fetchone()["total"]
+
+    rows = connection.execute(
+        """
+        SELECT r.refund_id, r.pnr, r.amount, r.reason, r.status, r.created_at
+        FROM refunds r JOIN wallets w ON w.wallet_id = r.wallet_id
+        WHERE w.user_id = %s
+        ORDER BY r.created_at DESC, r.refund_id DESC
+        LIMIT %s OFFSET %s
+        """,
+        (user_id, limit, offset),
+    ).fetchall()
+
+    return {
+        "items": [
+            {**row, "amount": Decimal(row["amount"])} for row in rows
+        ],
+        "limit": limit,
+        "offset": offset,
+        "total": total,
+    }
+
+
+def get_ticket(connection: Connection, user_id: int, pnr: str) -> dict:
+    """The user's e-ticket for a paid PNR; other users' PNRs look like missing ones."""
+    row = connection.execute(
+        """
+        SELECT t.pnr, t.ticket_number, t.qr_payload, t.issued_at, p.amount
+        FROM e_tickets t
+        JOIN payments p ON p.pnr = t.pnr
+        JOIN wallets w ON w.wallet_id = p.wallet_id
+        WHERE t.pnr = %s AND w.user_id = %s
+        """,
+        (pnr, user_id),
+    ).fetchone()
+    if row is None:
+        raise TicketNotFound(f"No e-ticket found for PNR {pnr}")
+
+    return {**row, "amount": Decimal(row["amount"])}
