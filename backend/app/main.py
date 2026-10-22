@@ -1,9 +1,11 @@
-﻿from collections.abc import Generator
+from collections.abc import Generator
 
 from fastapi import Depends, FastAPI, HTTPException
 from psycopg import Connection
 
 from app.core.database import get_db_connection
+from app.modules.inventory.errors import InventoryError, inventory_error_handler
+from app.modules.inventory.router import router as inventory_router
 from app.modules.network.errors import NetworkError, network_error_handler
 from app.modules.network.router import router as network_router
 from app.modules.wallet.errors import WalletError, wallet_error_handler
@@ -25,7 +27,9 @@ def database_connection() -> Generator[Connection, None, None]:
 
 app.add_exception_handler(NetworkError, network_error_handler)
 app.add_exception_handler(WalletError, wallet_error_handler)
+app.add_exception_handler(InventoryError, inventory_error_handler)
 app.include_router(network_router, prefix="/api/v1")
+app.include_router(inventory_router, prefix="/api/v1")
 app.include_router(wallet_router, prefix="/api/v1")
 
 
