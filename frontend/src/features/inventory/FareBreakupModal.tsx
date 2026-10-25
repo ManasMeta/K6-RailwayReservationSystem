@@ -1,4 +1,3 @@
-import React from "react";
 import type { FareBreakdown } from "./types";
 
 interface FareBreakupModalProps {
