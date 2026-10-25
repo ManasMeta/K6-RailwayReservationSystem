@@ -4,9 +4,10 @@ from app.modules.operations import sql
 from app.modules.operations.errors import OperationsError
 
 
-def list_runs(conn, run_date=None):
-    """Return train runs, optionally only those on one date."""
-    return conn.execute(sql.LIST_RUNS, {"d": run_date}).fetchall()
+def list_runs(conn, run_date=None, page=1, page_size=50):
+    """Return one page of train runs (page 1 is the first), optionally only those on one date."""
+    params = {"d": run_date, "limit": page_size, "offset": (page - 1) * page_size}
+    return conn.execute(sql.LIST_RUNS, params).fetchall()
 
 
 def get_run(conn, run_id):

@@ -10,7 +10,8 @@ LIST_RUNS = f"""
     FROM train_runs r
     JOIN trains t USING (train_id)
     WHERE (%(d)s::date IS NULL OR r.run_date = %(d)s)
-    ORDER BY r.run_date, t.train_no
+    ORDER BY r.run_date, t.train_no, r.run_id
+    LIMIT %(limit)s OFFSET %(offset)s
 """
 
 GET_RUN = f"""
