@@ -10,6 +10,7 @@ from app.modules.network.errors import NetworkError, network_error_handler
 from app.modules.network.router import router as network_router
 from app.modules.wallet.errors import WalletError, wallet_error_handler
 from app.modules.wallet.router import router as wallet_router
+from app.modules.operations.router import router as operations_router
 
 app = FastAPI(
     title="Yatrio",
@@ -31,6 +32,7 @@ app.add_exception_handler(InventoryError, inventory_error_handler)
 app.include_router(network_router, prefix="/api/v1")
 app.include_router(inventory_router, prefix="/api/v1")
 app.include_router(wallet_router, prefix="/api/v1")
+app.include_router(operations_router, prefix="/api/v1")
 
 
 @app.get("/health")
