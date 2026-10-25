@@ -1,4 +1,4 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 
 import psycopg
 from psycopg import Connection
@@ -125,6 +125,7 @@ def create_mock_topup(
             wallet_id, idempotency_key, amount, status, provider_reference
         )
         VALUES (%s, %s, %s, 'PENDING', %s)
+        ON CONFLICT (idempotency_key) DO NOTHING
         RETURNING topup_id
         """,
         (
@@ -134,6 +135,40 @@ def create_mock_topup(
             f"MOCK-UPI-{idempotency_key[:24]}",
         ),
     ).fetchone()
+
+    if topup is None:
+        existing = connection.execute(
+            """
+            SELECT t.topup_id, t.wallet_id, t.amount, t.status,
+                   t.provider_reference, w.user_id, w.balance, w.currency
+            FROM topups t
+            JOIN wallets w ON w.wallet_id = t.wallet_id
+            WHERE t.idempotency_key = %s
+            """,
+            (idempotency_key,),
+        ).fetchone()
+
+        if existing is not None:
+            if (
+                existing["user_id"] != user_id
+                or Decimal(existing["amount"]) != amount
+            ):
+                raise IdempotencyConflict(
+                    "Idempotency key was already used with different request details"
+                )
+
+            return {
+                "topup_id": existing["topup_id"],
+                "wallet_id": existing["wallet_id"],
+                "amount": Decimal(existing["amount"]),
+                "status": existing["status"],
+                "provider_reference": existing["provider_reference"],
+                "balance": Decimal(existing["balance"]),
+                "currency": existing["currency"],
+                "simulated": True,
+                "replayed": True,
+            }
+        raise RuntimeError("Concurrent topup conflict could not be resolved")
 
     topup_id = topup["topup_id"]
 

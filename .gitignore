@@ -7,3 +7,15 @@ node_modules/
 dist/
 .coverage
 .DS_Store
+
+# Frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example

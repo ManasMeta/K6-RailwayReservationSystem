@@ -1,4 +1,4 @@
-﻿from collections.abc import Generator
+from collections.abc import Generator
 
 import psycopg
 from psycopg.rows import dict_row
