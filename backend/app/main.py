@@ -14,7 +14,7 @@ from app.modules.operations.errors import OperationsError, operations_error_hand
 from app.modules.operations.router import router as operations_router
 from app.modules.operations.pnr_router import router as pnr_router
 from app.modules.operations.chart_router import router as chart_router
-
+from app.modules.operations.reports_router import router as reports_router
 
 app = FastAPI(
     title="Yatrio",
@@ -40,6 +40,7 @@ app.include_router(wallet_router, prefix="/api/v1")
 app.include_router(operations_router, prefix="/api/v1")
 app.include_router(pnr_router, prefix="/api/v1")
 app.include_router(chart_router, prefix="/api/v1")
+app.include_router(reports_router, prefix="/api/v1")
 
 
 @app.get("/health")

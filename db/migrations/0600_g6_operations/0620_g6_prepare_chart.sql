@@ -4,7 +4,8 @@
 --   2. walks every RAC / WL passenger of the run in booking order with an explicit cursor
 --      (RAC before WL, then oldest booking first) and gives each one the first free berth of
 --      their class for their own stretch of the route (G3's free_berths())
---   3. writes one chart_entries row per remaining passenger, and sets chart_prepared = true
+--   3. records how many were waiting and how many were promoted (for the WL-conversion report)
+--   4. writes one chart_entries row per remaining passenger, and sets chart_prepared = true
 -- Running it twice is safe: the second call returns the existing chart and changes nothing.
 CREATE OR REPLACE FUNCTION prepare_chart(
     p_run_id  BIGINT,
@@ -24,6 +25,7 @@ DECLARE
     v_run       train_runs%ROWTYPE;
     v_chart_id  BIGINT;
     v_promoted  INT := 0;
+    v_waiting   INT := 0;
     v_rac       INT;
     v_wl        INT;
     v_vacant    INT;
@@ -74,6 +76,7 @@ BEGIN
 
     -- Give berths to waiting passengers, in booking order.
     FOR v_pass IN c_waiting(v_run.train_id, v_run.run_date) LOOP
+        v_waiting := v_waiting + 1;
         FOR v_berth IN
             SELECT fb.berth_id, fb.coach_id, fb.berth_number
               FROM free_berths(v_run.train_id, v_run.run_date, v_pass.from_seq, v_pass.to_seq,
@@ -105,8 +108,8 @@ BEGIN
     END LOOP;
 
     -- Write the chart.
-    INSERT INTO charts (run_id, prepared_by)
-    VALUES (p_run_id, p_user_id)
+    INSERT INTO charts (run_id, prepared_by, waiting_before, promoted)
+    VALUES (p_run_id, p_user_id, v_waiting, v_promoted)
     RETURNING chart_id INTO v_chart_id;
 
     INSERT INTO chart_entries (chart_id, passenger_id, coach_code, berth_no, berth_type, quota_code)

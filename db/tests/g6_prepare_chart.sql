@@ -70,6 +70,11 @@ BEGIN
         RAISE EXCEPTION 'TEST 3 FAIL: promoted passenger has no berth on the chart'; END IF;
     RAISE NOTICE 'TEST 3 PASS: chart_entries written with berths';
 
+    IF (SELECT waiting_before FROM charts WHERE chart_id = v_out.o_chart_id) <> 3
+       OR (SELECT promoted FROM charts WHERE chart_id = v_out.o_chart_id) <> 2 THEN
+        RAISE EXCEPTION 'TEST 3b FAIL: chart should record 3 waiting, 2 promoted'; END IF;
+    RAISE NOTICE 'TEST 3b PASS: chart records waiting_before = 3 and promoted = 2';
+
     IF NOT (SELECT chart_prepared FROM train_runs WHERE run_id = v_run.run_id) THEN
         RAISE EXCEPTION 'TEST 4 FAIL: run not marked chart_prepared'; END IF;
     IF NOT EXISTS (SELECT 1 FROM run_events WHERE run_id = v_run.run_id AND event_type = 'CHART') THEN
