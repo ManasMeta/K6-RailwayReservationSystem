@@ -17,7 +17,7 @@ Yatrio is a six-group college project in one monorepo. PostgreSQL 16 holds the s
 |---|---|---|---|
 | G1 | Accounts and access | Not merged yet | |
 | G2 | Rail network and journey planner | **Done** | [docs/g2-database-design.md](docs/g2-database-design.md) |
-| G3 | Inventory and fares | Not merged yet | |
+| G3 | Inventory and fares | **Done** | [docs/g3-database-design.md](docs/g3-database-design.md) |
 | G4 | Reservation engine | Not merged yet | |
 | G5 | Wallet and ticketing | **Done** | [docs/g5-database-design.md](docs/g5-database-design.md) |
 | G6 | Operations and analytics | Not merged yet | |
@@ -28,6 +28,13 @@ Yatrio is a six-group college project in one monorepo. PostgreSQL 16 holds the s
 - Direct trains and **one-change journeys**: the second train must leave 30 minutes to 6 hours after the first arrives, ranked by total time.
 - Station autocomplete backed by a trigram GIN index (an `EXPLAIN ANALYZE` comparison is in the G2 doc).
 - UI: journey search with Direct and One change tabs, and a train timetable page.
+
+### G3: inventory and fares
+- **Segment-wise berths**: a berth freed at an intermediate station is resold for the rest of the route, enforced at the database level by a PostgreSQL `btree_gist` exclusion constraint on `berth_allocations` (`stops INT4RANGE`).
+- Automated coach and berth generator from `train_consist` (Sleeper 72 berths, 3A 64 berths, 2A 48 berths).
+- `calculate_fare(...)` returns base fare, reservation fee, superfast charge, tatkal surcharge, concession discounts, and AC GST.
+- `availability_grid(...)` set-returning function generating 6-day date matrices cross-joined with active train classes.
+- UI: interactive availability matrix in search cards, fare breakup modal, and coach layout berth schematic.
 
 ### G5: wallet and ticketing
 - A **double-entry ledger**: every top-up, payment and refund is a balanced ledger transaction, checked by a deferred constraint trigger at commit.

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { AvailabilityGrid } from "../inventory/AvailabilityGrid";
 import {
   daysBetween,
   formatDateTimeClock,
@@ -37,6 +38,33 @@ function LegRow({ leg }: { leg: Leg }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function DirectTrainCard({ leg, date }: { leg: Leg; date: string }) {
+  const [showAvailability, setShowAvailability] = useState(false);
+
+  return (
+    <article className="card" key={`${leg.train_no}-${leg.run_date}`}>
+      <LegRow leg={leg} />
+      <div className="train-card-footer">
+        <button
+          type="button"
+          className="secondary"
+          onClick={() => setShowAvailability(!showAvailability)}
+        >
+          {showAvailability ? "Hide Seats & Fares" : "Check Seats & Fares"}
+        </button>
+      </div>
+      {showAvailability && (
+        <AvailabilityGrid
+          trainNo={leg.train_no}
+          fromCode={leg.from_code}
+          toCode={leg.to_code}
+          startDate={date}
+        />
+      )}
+    </article>
   );
 }
 
@@ -93,9 +121,11 @@ export function JourneyResultsView({ results }: { results: JourneyResults }) {
             </p>
           ) : (
             results.direct.map((leg) => (
-              <article className="card" key={`${leg.train_no}-${leg.run_date}`}>
-                <LegRow leg={leg} />
-              </article>
+              <DirectTrainCard
+                key={`${leg.train_no}-${leg.run_date}`}
+                leg={leg}
+                date={results.date}
+              />
             ))
           ))}
         {tab === "connecting" &&
