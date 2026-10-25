@@ -117,6 +117,7 @@ BEGIN
       LEFT JOIN berths  b  ON b.berth_id  = rp.berth_id
      WHERE r.train_id = v_run.train_id
        AND r.run_date = v_run.run_date
+       AND r.status IN ('CONFIRMED', 'PARTIALLY_CANCELLED')   -- unpaid bookings are not on the chart
        AND rp.current_status IN ('CNF', 'RAC', 'WL')
      ORDER BY rp.passenger_id;
 

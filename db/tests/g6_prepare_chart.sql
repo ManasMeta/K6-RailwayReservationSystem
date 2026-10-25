@@ -82,6 +82,14 @@ BEGIN
     IF (SELECT count(*) FROM charts WHERE run_id = v_run.run_id) <> 1 THEN
         RAISE EXCEPTION 'TEST 5 FAIL: more than one chart for the run'; END IF;
     RAISE NOTICE 'TEST 5 PASS: running twice is safe';
+
+    IF EXISTS (SELECT 1 FROM chart_entries ce
+                 JOIN reservation_passengers rp ON rp.passenger_id = ce.passenger_id
+                 JOIN reservations r ON r.pnr = rp.pnr
+                WHERE ce.chart_id = v_out.o_chart_id
+                  AND r.status NOT IN ('CONFIRMED', 'PARTIALLY_CANCELLED')) THEN
+        RAISE EXCEPTION 'TEST 5b FAIL: chart contains passengers of unpaid or cancelled bookings'; END IF;
+    RAISE NOTICE 'TEST 5b PASS: only paid bookings are on the chart';
 END $$;
 
 DO $$

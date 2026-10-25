@@ -13,6 +13,8 @@ from app.modules.wallet.router import router as wallet_router
 from app.modules.operations.errors import OperationsError, operations_error_handler
 from app.modules.operations.router import router as operations_router
 from app.modules.operations.pnr_router import router as pnr_router
+from app.modules.operations.chart_router import router as chart_router
+
 
 app = FastAPI(
     title="Yatrio",
@@ -37,6 +39,7 @@ app.include_router(inventory_router, prefix="/api/v1")
 app.include_router(wallet_router, prefix="/api/v1")
 app.include_router(operations_router, prefix="/api/v1")
 app.include_router(pnr_router, prefix="/api/v1")
+app.include_router(chart_router, prefix="/api/v1")
 
 
 @app.get("/health")
