@@ -2,6 +2,7 @@ import { Link, Route, Routes } from "react-router-dom";
 import { JourneySearchPage } from "./features/network/JourneySearchPage";
 import { TimetablePage } from "./features/network/TimetablePage";
 import { OperationsPage } from "./features/operations/OperationsPage";
+import { PNRStatusPage } from "./features/operations/PNRStatusPage";
 import { PayReservationPage } from "./features/wallet/PayReservationPage";
 import { RefundsPage } from "./features/wallet/RefundsPage";
 import { TicketPage } from "./features/wallet/TicketPage";
@@ -18,12 +19,14 @@ export function App() {
           <Link to="/wallet">Wallet</Link>
           <Link to="/refunds">Refunds</Link>
           <Link to="/operations">Operations</Link>
+          <Link to="/pnr-status">PNR Status</Link>
         </nav>
       </header>
       <Routes>
         <Route path="/" element={<JourneySearchPage />} />
         <Route path="/trains/:trainNo" element={<TimetablePage />} />
         <Route path="/operations" element={<OperationsPage />} />
+        <Route path="/pnr-status" element={<PNRStatusPage />} />
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/reservations/:pnr/pay" element={<PayReservationPage />} />
         <Route path="/tickets/:pnr" element={<TicketPage />} />
