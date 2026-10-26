@@ -1,4 +1,4 @@
-import { apiClient } from '../../../api/client';
+import { api as apiClient } from '../../../api/client';
 import {
   CancelPassengersPayload,
   CancellationResponse,

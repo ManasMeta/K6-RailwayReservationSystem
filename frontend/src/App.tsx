@@ -8,7 +8,7 @@ import { PayReservationPage } from "./features/wallet/PayReservationPage";
 import { RefundsPage } from "./features/wallet/RefundsPage";
 import { TicketPage } from "./features/wallet/TicketPage";
 import { WalletPage } from "./features/wallet/WalletPage";
-import { AccountsPage } from "./features/accounts/AccountsPage";
+import AccountsPage from "./features/accounts/AccountsPage";
 
 export function App() {
   return (
