@@ -6,7 +6,7 @@ from typing import Optional
 import psycopg
 from fastapi import HTTPException, status
 
-from app.core.database import get_db_connection
+from app.core.database import db_session
 from app.modules.reservations import sql
 from app.modules.reservations.schemas import (
     CancellationResponse,
@@ -25,7 +25,7 @@ class ReservationService:
         """Creates a booking hold (PENDING_PAYMENT), acquires transactional advisory lock,
         and invokes book_tickets() to allocate berths/RAC/WL.
         """
-        with get_db_connection(user_id=user_id) as conn:
+        with db_session(user_id=user_id) as conn:
             with conn.cursor() as cur:
                 # 1. Resolve stop sequences for from and to stations
                 cur.execute(
@@ -124,7 +124,7 @@ class ReservationService:
     @staticmethod
     def get_reservation_by_pnr(pnr: str, user_id: Optional[int] = None) -> ReservationResponse:
         """Retrieves complete reservation details and passenger allocations by 10-digit PNR."""
-        with get_db_connection(user_id=user_id) as conn:
+        with db_session(user_id=user_id) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL_GET_RESERVATION_BY_PNR, (pnr,))
                 res_row = cur.fetchone()
@@ -157,7 +157,7 @@ class ReservationService:
     ) -> ReservationListResponse:
         """Lists reservations for the logged-in passenger with pagination."""
         offset = (page - 1) * page_size
-        with get_db_connection(user_id=user_id) as conn:
+        with db_session(user_id=user_id) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql.SQL_COUNT_USER_RESERVATIONS,
@@ -198,7 +198,7 @@ class ReservationService:
         """Cancels specific passengers on a reservation, releases berths, promotes RAC/WL,
         and computes applicable refunds.
         """
-        with get_db_connection(user_id=user_id) as conn:
+        with db_session(user_id=user_id) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL_GET_RESERVATION_BY_PNR, (pnr,))
                 res_row = cur.fetchone()
@@ -264,7 +264,7 @@ class ReservationService:
     @staticmethod
     def release_expired_holds() -> int:
         """Releases overdue pending holds and restores inventory."""
-        with get_db_connection() as conn:
+        with db_session() as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL_RELEASE_EXPIRED_HOLDS)
                 row = cur.fetchone()
@@ -273,7 +273,7 @@ class ReservationService:
     @staticmethod
     def confirm_reservation(pnr: str) -> bool:
         """Confirms payment and locks in reservation status."""
-        with get_db_connection() as conn:
+        with db_session() as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL_CONFIRM_RESERVATION, (pnr,))
                 row = cur.fetchone()

@@ -87,11 +87,14 @@ def cancel_passengers(
 @router.post(
     "/{pnr}/confirm",
     summary="Confirm reservation after successful payment",
-    description="Contract hook used by G5 Wallet & Ticketing to mark a reservation as CONFIRMED.",
+    description=(
+        "Staff/admin override that marks a reservation as CONFIRMED without a wallet payment. "
+        "Passengers pay through POST /reservations/{pnr}/pay, which confirms in the database."
+    ),
 )
 def confirm_reservation(
     pnr: str,
-    current_user: UserPayload = Depends(get_current_user),
+    current_user: UserPayload = Depends(require_role(["staff", "admin"])),
 ) -> dict:
     success = ReservationService.confirm_reservation(pnr=pnr)
     return {"pnr": pnr, "confirmed": success, "status": "CONFIRMED"}

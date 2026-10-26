@@ -15,12 +15,12 @@ Yatrio is a six-group college project in one monorepo. PostgreSQL 16 holds the s
 
 | Group | Module | State | Docs |
 |---|---|---|---|
-| G1 | Accounts and access | Not merged yet | |
+| G1 | Accounts and access | **Sign-up, login, JWT and roles done**; row-level security and app roles still to do | |
 | G2 | Rail network and journey planner | **Done** | [docs/g2-database-design.md](docs/g2-database-design.md) |
 | G3 | Inventory and fares | **Done** | [docs/g3-database-design.md](docs/g3-database-design.md) |
-| G4 | Reservation engine | Not merged yet | |
+| G4 | Reservation engine | **Merged and wired in**; not yet run against a live database | |
 | G5 | Wallet and ticketing | **Done** | [docs/g5-database-design.md](docs/g5-database-design.md) |
-| G6 | Operations and analytics | Not merged yet | |
+| G6 | Operations and analytics | **Done** | [docs/g6-database-design.md](docs/g6-database-design.md) |
 
 ### G2: rail network and journey planner
 - Imports the master timetable (186,124 stop rows) through a staging table into `stations`, `trains`, `train_stops` and `train_running_days`; rerunning the import changes nothing.
@@ -44,9 +44,12 @@ Yatrio is a six-group college project in one monorepo. PostgreSQL 16 holds the s
 - Statement with a running balance, e-ticket page with QR code, and PDF download.
 
 ### Still to come
-Accounts and login (G1), segment-wise berth inventory and fares (G3), the reservation engine with Tatkal and RAC/WL (G4), and staff operations and analytics (G6).
+Row-level security on the G1 tables and the `nrrms_app` / `nrrms_report` database roles (G1), an end-to-end run of the booking flow against PostgreSQL (G4), and role checks on the staff and admin routes (G6).
 
-G5 depends on G1's `users` and G4's `reservations`, `cancellations` and `confirm_reservation()`. Until those merge, G5's migrations only apply where those objects exist, and `db/tests/support/g5_contract_stubs.sql` provides stand-ins for local trials. The assumed columns are listed in the G5 doc. Wallet, payment and ticket routes return `401` until G1's authentication provides the signed-in user.
+### Signing in
+`POST /auth/signup` creates a passenger account; staff and admin roles are assigned in the `user_roles` table. `POST /auth/login` returns a JWT that the frontend sends as `Authorization: Bearer ...`. Set `JWT_SECRET` in `.env`; there is no default, so the backend refuses to issue tokens without it. Wallet, payment, ticket, reservation and saved-passenger routes need a token and return `401` without one.
+
+Passengers pay through the wallet (`POST /reservations/{pnr}/pay`), which confirms the reservation in the database. `POST /reservations/{pnr}/confirm` is a staff and admin override.
 
 ## Database Architecture & Complete ER Model
 
@@ -496,6 +499,11 @@ Everything is under `/api/v1`; errors are `{"detail": "...", "code": "..."}`. Fu
 | `GET /stations?q=` | G2 | Station autocomplete |
 | `GET /journeys?from=&to=&date=` | G2 | Direct and one-change journeys |
 | `GET /trains/{no}/timetable` | G2 | Stops, days and running days |
+| `POST /auth/signup`, `/auth/login`, `/auth/refresh` | G1 | Create account, sign in, renew token |
+| `GET /me`, `PATCH /me` | G1 | Profile |
+| `GET /me/passengers`, `POST /me/passengers`, `DELETE /me/passengers/{id}` | G1 | Saved passengers (up to 10) |
+| `POST /reservations`, `GET /reservations`, `GET /reservations/{pnr}` | G4 | Hold berths, list, details |
+| `POST /reservations/{pnr}/cancel` | G4 | Cancel passengers, promote RAC and WL |
 | `GET /wallet`, `POST /wallet/topups` | G5 | Balance, simulated top-up |
 | `GET /wallet/transactions` | G5 | Statement with running balance |
 | `GET /reservations/{pnr}/payment`, `POST /reservations/{pnr}/pay` | G5 | Fare quote, pay from wallet |
@@ -512,11 +520,11 @@ db/
   seeds/           small fixtures
   tests/           SQL assertion scripts (support/ holds stand-ins for other groups' tables)
 backend/app/
-  core/            config, database connection, auth dependency
-  modules/         network/ (G2), wallet/ (G5)
+  core/            config, database connection, JWT auth and require_role()
+  modules/         accounts/ (G1), network/ (G2), reservations/ (G4), wallet/ (G5)
 backend/tests/     pytest
 frontend/src/
-  features/        network/ (G2), wallet/ (G5): one folder per group
+  features/        accounts/ (G1), network/ (G2), reservations/ (G4), wallet/ (G5): one folder per group
 docs/              plan and per-group design notes
 ```
 

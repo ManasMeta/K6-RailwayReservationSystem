@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.auth import UserPayload, get_current_user
 from app.main import app
 from app.modules.reservations.schemas import (
     CancellationResponse,
@@ -18,6 +19,19 @@ from app.modules.reservations.schemas import (
 from app.modules.reservations.service import ReservationService
 
 client = TestClient(app)
+
+
+def _sign_in(role: str = "passenger") -> None:
+    app.dependency_overrides[get_current_user] = lambda: UserPayload(
+        user_id=1, email="passenger@example.com", role=role
+    )
+
+
+@pytest.fixture(autouse=True)
+def signed_in_passenger():
+    _sign_in("passenger")
+    yield
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -142,10 +156,27 @@ def test_cancel_passengers_endpoint():
         assert data["total_refund"] == "1050.00"
 
 
-def test_confirm_reservation_endpoint():
+def test_confirm_reservation_endpoint_allows_staff():
+    _sign_in("staff")
     with patch.object(ReservationService, "confirm_reservation", return_value=True):
         res = client.post("/api/v1/reservations/1000000042/confirm")
         assert res.status_code == 200
         data = res.json()
         assert data["confirmed"] is True
         assert data["status"] == "CONFIRMED"
+
+
+def test_confirm_reservation_endpoint_rejects_passenger():
+    # Passengers must pay through the wallet; they cannot confirm their own hold.
+    with patch.object(ReservationService, "confirm_reservation", return_value=True) as confirm:
+        res = client.post("/api/v1/reservations/1000000042/confirm")
+    assert res.status_code == 403
+    assert res.json()["code"] == "PERMISSION_DENIED"
+    confirm.assert_not_called()
+
+
+def test_reservations_require_authentication():
+    app.dependency_overrides.clear()
+    res = client.get("/api/v1/reservations")
+    assert res.status_code == 401
+    assert res.json()["code"] == "AUTH_REQUIRED"
