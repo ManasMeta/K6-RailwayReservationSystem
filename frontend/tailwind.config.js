@@ -1,9 +1,9 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  // Utilities apply only inside .reservations-ui, so they cannot restyle other pages.
+  important: ".reservations-ui",
+  corePlugins: { preflight: false },
+  content: ["./src/features/reservations/**/*.{ts,tsx}"],
   theme: {
     extend: {
       fontFamily: {

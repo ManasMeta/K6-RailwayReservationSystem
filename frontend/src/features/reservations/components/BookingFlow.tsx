@@ -14,14 +14,19 @@ import {
   UserCheck,
   Users,
 } from 'lucide-react';
-import {
-  useCreateReservation,
-  useConfirmReservation,
-  useSavedPassengers,
-} from '../hooks/useReservations';
-import { BerthPreference, QuotaCode, Reservation } from '../types';
+import { errorMessage } from '../../../api/client';
+import { useCreateReservation, useSavedPassengers } from '../hooks/useReservations';
+import { BerthPreference, QuotaCode, Reservation, SavedPassenger } from '../types';
 import { HoldCountdownTimer } from './HoldCountdownTimer';
 import { TatkalCountdown } from './TatkalCountdown';
+
+interface PassengerRow {
+  passenger_name: string;
+  age: number | '';
+  gender: string;
+  berth_preference: BerthPreference | '';
+  senior_citizen: boolean;
+}
 
 interface BookingFlowProps {
   initialTrainNo?: string;
@@ -30,7 +35,8 @@ interface BookingFlowProps {
   initialToStation?: string;
   initialRunDate?: string;
   initialClassCode?: string;
-  onBookingSuccess?: (pnr: string) => void;
+  /** Called when the passenger chooses to pay for the held reservation. */
+  onPayClick?: (pnr: string) => void;
 }
 
 export const BookingFlow: React.FC<BookingFlowProps> = ({
@@ -40,7 +46,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
   initialToStation = 'DDU',
   initialRunDate = new Date(Date.now() + 5 * 86400000).toISOString().split('T')[0],
   initialClassCode = '3A',
-  onBookingSuccess,
+  onPayClick,
 }) => {
   // Train & Route State
   const [trainNo] = useState(initialTrainNo);
@@ -52,15 +58,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
   const [quotaCode, setQuotaCode] = useState<QuotaCode>('GN');
 
   // Passenger list state
-  const [passengers, setPassengers] = useState<
-    Array<{
-      passenger_name: string;
-      age: number | '';
-      gender: string;
-      berth_preference: BerthPreference | '';
-      senior_citizen: boolean;
-    }>
-  >([
+  const [passengers, setPassengers] = useState<PassengerRow[]>([
     {
       passenger_name: '',
       age: '',
@@ -78,15 +76,18 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
   // Queries and Mutations
   const { data: savedPassengers } = useSavedPassengers();
   const createReservationMutation = useCreateReservation();
-  const confirmReservationMutation = useConfirmReservation();
 
   const isAcClass = ['1A', '2A', '3A', '3E', 'CC', 'EC'].includes(classCode);
 
   // Handle passenger fields
-  const handlePassengerChange = (index: number, field: string, value: any) => {
+  const handlePassengerChange = (
+    index: number,
+    field: keyof PassengerRow,
+    value: string | number | boolean,
+  ) => {
     setPassengers((prev) => {
       const updated = [...prev];
-      const p = { ...updated[index], [field]: value };
+      const p = { ...updated[index], [field]: value } as PassengerRow;
       if (field === 'age') {
         const numAge = Number(value);
         p.senior_citizen = numAge >= 60;
@@ -115,7 +116,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
     setPassengers((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const addSavedPassenger = (saved: any) => {
+  const addSavedPassenger = (saved: SavedPassenger) => {
     if (passengers.length >= 6) return;
     // Replace first if empty, else append
     if (passengers.length === 1 && !passengers[0].passenger_name) {
@@ -124,7 +125,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
           passenger_name: saved.full_name,
           age: saved.age,
           gender: saved.gender,
-          berth_preference: saved.berth_preference || 'LB',
+          berth_preference: (saved.berth_preference || 'LB') as BerthPreference,
           senior_citizen: saved.senior_citizen || saved.age >= 60,
         },
       ]);
@@ -135,7 +136,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
           passenger_name: saved.full_name,
           age: saved.age,
           gender: saved.gender,
-          berth_preference: saved.berth_preference || 'LB',
+          berth_preference: (saved.berth_preference || 'LB') as BerthPreference,
           senior_citizen: saved.senior_citizen || saved.age >= 60,
         },
       ]);
@@ -183,21 +184,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 
       const res = await createReservationMutation.mutateAsync(payload);
       setActiveReservation(res);
-    } catch (err: any) {
-      setErrorMsg(err.detail || 'Booking request failed. Please check date or quota availability.');
-    }
-  };
-
-  const handleConfirmPayment = async () => {
-    if (!activeReservation) return;
-    try {
-      await confirmReservationMutation.mutateAsync(activeReservation.pnr);
-      setActiveReservation((prev) => (prev ? { ...prev, status: 'CONFIRMED' } : null));
-      if (onBookingSuccess) {
-        onBookingSuccess(activeReservation.pnr);
-      }
-    } catch (err: any) {
-      setErrorMsg(err.detail || 'Payment confirmation failed');
+    } catch (err) {
+      setErrorMsg(errorMessage(err));
     }
   };
 
@@ -393,8 +381,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
               </button>
               <button
                 type="button"
-                onClick={handleConfirmPayment}
-                disabled={confirmReservationMutation.isPending}
+                onClick={() => onPayClick?.(activeReservation.pnr)}
                 className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium text-sm transition shadow-lg shadow-emerald-500/20 flex items-center gap-2"
               >
                 <CreditCard className="w-4 h-4" />
@@ -405,7 +392,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
             <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between text-emerald-200">
               <div className="flex items-center gap-2 text-sm">
                 <CheckCircle className="w-5 h-5 text-emerald-400" />
-                <span>Payment Confirmed. E-Ticket has been generated and emailed.</span>
+                <span>Payment confirmed. Your e-ticket is ready.</span>
               </div>
               <button
                 type="button"

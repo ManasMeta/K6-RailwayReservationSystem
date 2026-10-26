@@ -1,14 +1,13 @@
-
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { api, clearToken, errorMessage, getToken, setToken } from '../../api/client';
 
-type Role = 'Passenger' | 'Staff' | 'Admin';
-
-type Account = {
+type User = {
   name: string;
   email: string;
-  password: string;
   phone: string;
-  role: Role;
+  role: string;
 };
 
 type Passenger = {
@@ -18,28 +17,44 @@ type Passenger = {
   gender: string;
 };
 
-const ACCOUNTS_KEY = 'yatrio_g1_demo_accounts';
-const SESSION_KEY = 'yatrio_g1_demo_session';
+type ApiUser = {
+  user_id: number;
+  email: string;
+  full_name: string;
+  phone: string | null;
+  role: string;
+};
 
-const initialAccounts: Account[] = [];
+type ApiPassenger = {
+  passenger_id: number;
+  full_name: string;
+  age: number;
+  gender: string;
+};
+
+const toUser = (user: ApiUser): User => ({
+  name: user.full_name,
+  email: user.email,
+  phone: user.phone ?? '',
+  role: user.role.charAt(0).toUpperCase() + user.role.slice(1),
+});
+
+const toPassenger = (passenger: ApiPassenger): Passenger => ({
+  id: passenger.passenger_id,
+  name: passenger.full_name,
+  age: passenger.age,
+  gender: passenger.gender,
+});
+
+const MAX_PASSENGERS = 10;
 
 export default function AccountsPage() {
-  const [accounts, setAccounts] = useState<Account[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]');
-    } catch {
-      return initialAccounts;
-    }
-  });
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const returnTo = (useLocation().state as { from?: string } | null)?.from;
 
-  const [user, setUser] = useState<Account | null>(() => {
-    try {
-      const email = localStorage.getItem(SESSION_KEY);
-      return accountsFromStorage(email);
-    } catch {
-      return null;
-    }
-  });
+  const [user, setUser] = useState<User | null>(null);
+  const [restoring, setRestoring] = useState(() => getToken() !== null);
 
   const [page, setPage] = useState<'login' | 'register' | 'dashboard' | 'profile' | 'passengers'>(
     'login',
@@ -49,38 +64,40 @@ export default function AccountsPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<Role>('Passenger');
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [pName, setPName] = useState('');
   const [pAge, setPAge] = useState('');
   const [pGender, setPGender] = useState('Female');
 
-  function accountsFromStorage(sessionEmail: string | null): Account | null {
-    if (!sessionEmail) return null;
-    const saved: Account[] = JSON.parse(localStorage.getItem(ACCOUNTS_KEY) || '[]');
-    return saved.find((account) => account.email === sessionEmail) || null;
-  }
+  // Resume the session when a token from an earlier visit is still valid.
+  useEffect(() => {
+    if (!getToken()) return;
+    api
+      .get<ApiUser>('/me')
+      .then((res) => setUser(toUser(res.data)))
+      .catch(() => clearToken())
+      .finally(() => setRestoring(false));
+  }, []);
 
   useEffect(() => {
-    if (user) {
-      setPage('dashboard');
-      try {
-        const saved = JSON.parse(
-          localStorage.getItem(`yatrio_g1_passengers_${user.email}`) || '[]',
-        );
-        setPassengers(saved);
-      } catch {
-        setPassengers([]);
-      }
-    }
+    if (!user) return;
+    setPage('dashboard');
+    api
+      .get<ApiPassenger[]>('/me/passengers')
+      .then((res) => setPassengers(res.data.map(toPassenger)))
+      .catch(() => setPassengers([]));
   }, [user]);
 
-  function saveAccounts(updated: Account[]) {
-    setAccounts(updated);
-    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(updated));
+  function signedIn(token: string, apiUser: ApiUser) {
+    setToken(token);
+    // Reservations and wallet data cached for a previous user must not leak to this one.
+    queryClient.clear();
+    setPassword('');
+    setUser(toUser(apiUser));
+    if (returnTo) navigate(returnTo, { replace: true });
   }
 
-  function register() {
+  async function register() {
     setMessage('');
 
     if (!name.trim() || !email.trim() || !password || !phone.trim()) {
@@ -91,71 +108,69 @@ export default function AccountsPage() {
       setMessage('Please enter a valid email address.');
       return;
     }
-    if (password.length < 6) {
-      setMessage('Password must contain at least 6 characters.');
+    if (password.length < 8) {
+      setMessage('Password must contain at least 8 characters.');
       return;
     }
-    if (accounts.some((account) => account.email.toLowerCase() === email.toLowerCase())) {
-      setMessage('An account with this email already exists.');
+    if (!/^[6-9][0-9]{9}$/.test(phone.trim())) {
+      setMessage('Enter a 10-digit Indian mobile number.');
       return;
     }
 
-    const newAccount: Account = {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password,
-      phone: phone.trim(),
-      role,
-    };
-
-    saveAccounts([...accounts, newAccount]);
-    localStorage.setItem(SESSION_KEY, newAccount.email);
-    setUser(newAccount);
-    setMessage('Account created successfully!');
+    try {
+      const res = await api.post<{ access_token: string; user: ApiUser }>('/auth/signup', {
+        full_name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: phone.trim(),
+        password,
+      });
+      signedIn(res.data.access_token, res.data.user);
+      setMessage('Account created successfully!');
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
   }
 
-  function login() {
+  async function login() {
     setMessage('');
-    const found = accounts.find(
-      (account) =>
-        account.email.toLowerCase() === email.trim().toLowerCase() &&
-        account.password === password,
-    );
-
-    if (!found) {
-      setMessage('Invalid email or password. Register first if you are a new user.');
-      return;
+    try {
+      const res = await api.post<{ access_token: string; user: ApiUser }>('/auth/login', {
+        email: email.trim(),
+        password,
+      });
+      signedIn(res.data.access_token, res.data.user);
+      setPage('dashboard');
+    } catch (error) {
+      setMessage(errorMessage(error));
     }
-
-    localStorage.setItem(SESSION_KEY, found.email);
-    setUser(found);
-    setPage('dashboard');
   }
 
   function logout() {
-    localStorage.removeItem(SESSION_KEY);
+    clearToken();
+    queryClient.clear();
     setUser(null);
+    setPassengers([]);
     setPage('login');
     setPassword('');
     setMessage('');
   }
 
-  function updateProfile() {
+  async function updateProfile() {
     if (!user) return;
     if (!name.trim() || !phone.trim()) {
       setMessage('Name and phone number are required.');
       return;
     }
-
-    const updated = accounts.map((account) =>
-      account.email === user.email
-        ? { ...account, name: name.trim(), phone: phone.trim() }
-        : account,
-    );
-
-    saveAccounts(updated);
-    setUser({ ...user, name: name.trim(), phone: phone.trim() });
-    setMessage('Profile updated successfully.');
+    try {
+      const res = await api.patch<ApiUser>('/me', {
+        full_name: name.trim(),
+        phone: phone.trim(),
+      });
+      setUser(toUser(res.data));
+      setMessage('Profile updated successfully.');
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
   }
 
   function openProfile() {
@@ -166,7 +181,7 @@ export default function AccountsPage() {
     setPage('profile');
   }
 
-  function savePassenger() {
+  async function savePassenger() {
     if (!user) return;
     const age = Number(pAge);
 
@@ -174,28 +189,37 @@ export default function AccountsPage() {
       setMessage('Enter a valid passenger name and age (1–120).');
       return;
     }
-    if (passengers.length >= 10) {
-      setMessage('You can save a maximum of 10 passengers.');
+    if (passengers.length >= MAX_PASSENGERS) {
+      setMessage(`You can save a maximum of ${MAX_PASSENGERS} passengers.`);
       return;
     }
 
-    const updated = [
-      ...passengers,
-      { id: Date.now(), name: pName.trim(), age, gender: pGender },
-    ];
-    setPassengers(updated);
-    localStorage.setItem(`yatrio_g1_passengers_${user.email}`, JSON.stringify(updated));
-    setPName('');
-    setPAge('');
-    setMessage('Passenger added successfully.');
+    try {
+      const res = await api.post<ApiPassenger>('/me/passengers', {
+        full_name: pName.trim(),
+        age,
+        gender: pGender,
+      });
+      setPassengers((current) => [...current, toPassenger(res.data)]);
+      queryClient.invalidateQueries({ queryKey: ['saved_passengers'] });
+      setPName('');
+      setPAge('');
+      setMessage('Passenger added successfully.');
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
   }
 
-  function removePassenger(id: number) {
+  async function removePassenger(id: number) {
     if (!user) return;
-    const updated = passengers.filter((passenger) => passenger.id !== id);
-    setPassengers(updated);
-    localStorage.setItem(`yatrio_g1_passengers_${user.email}`, JSON.stringify(updated));
-    setMessage('Passenger removed.');
+    try {
+      await api.delete(`/me/passengers/${id}`);
+      setPassengers((current) => current.filter((passenger) => passenger.id !== id));
+      queryClient.invalidateQueries({ queryKey: ['saved_passengers'] });
+      setMessage('Passenger removed.');
+    } catch (error) {
+      setMessage(errorMessage(error));
+    }
   }
 
   useEffect(() => {
@@ -265,7 +289,9 @@ export default function AccountsPage() {
       </header>
 
       <main className="y-main">
-        {!user && page === 'login' && (
+        {restoring && <p className="y-muted" role="status">Restoring your session…</p>}
+
+        {!restoring && !user && page === 'login' && (
           <section className="y-card y-auth">
             <div className="y-kicker">Welcome aboard</div>
             <h1 className="y-title">Sign in to Yatrio</h1>
@@ -288,10 +314,9 @@ export default function AccountsPage() {
             <form className="y-form" onSubmit={(event) => { event.preventDefault(); register(); }}>
               <div className="y-field"><label htmlFor="reg-name">Full name</label><input id="reg-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required /></div>
               <div className="y-field"><label htmlFor="reg-email">Email address</label><input id="reg-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-              <div className="y-field"><label htmlFor="reg-phone">Phone number</label><input id="reg-phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} required /></div>
-              <div className="y-field"><label htmlFor="reg-password">Password (minimum 6 characters)</label><input id="reg-password" type="password" autoComplete="new-password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
-              <div className="y-field"><label htmlFor="reg-role">Demo role</label><select id="reg-role" value={role} onChange={(e) => setRole(e.target.value as Role)}><option>Passenger</option><option>Staff</option><option>Admin</option></select><small className="y-muted">Demo only. Real roles must be assigned and verified by the backend.</small></div>
-              {message && <div className="y-message error" role="alert">{message}</div>}
+              <div className="y-field"><label htmlFor="reg-phone">Phone number</label><input id="reg-phone" type="tel" autoComplete="tel" inputMode="numeric" pattern="[6-9][0-9]{9}" title="10-digit mobile number" value={phone} onChange={(e) => setPhone(e.target.value)} required /></div>
+              <div className="y-field"><label htmlFor="reg-password">Password (minimum 8 characters)</label><input id="reg-password" type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
+                            {message && <div className="y-message error" role="alert">{message}</div>}
               <button className="y-btn" type="submit">Create account →</button>
             </form>
             <p className="y-switch">Already registered? <button className="y-link" onClick={() => { setPage('login'); setMessage(''); }}>Sign in</button></p>
@@ -304,9 +329,9 @@ export default function AccountsPage() {
             <h1 className="y-title">Welcome, {user.name.split(' ')[0]} 👋</h1>
             <p className="y-sub">Manage your Yatrio account details and travel companions from one place.</p>
             <div className="y-grid">
-              <div className="y-stat"><span className="y-muted">ACCOUNT STATUS</span><strong>Active</strong><span className="y-muted">Signed in for this demo</span></div>
-              <div className="y-stat"><span className="y-muted">YOUR ROLE</span><strong>{user.role}</strong><span className="y-muted">Demo role, not server-authorized</span></div>
-              <div className="y-stat"><span className="y-muted">SAVED PASSENGERS</span><strong>{passengers.length}/10</strong><span className="y-muted">Travel companion profiles</span></div>
+              <div className="y-stat"><span className="y-muted">ACCOUNT STATUS</span><strong>Active</strong><span className="y-muted">Signed in</span></div>
+              <div className="y-stat"><span className="y-muted">YOUR ROLE</span><strong>{user.role}</strong><span className="y-muted">Assigned by Yatrio</span></div>
+              <div className="y-stat"><span className="y-muted">SAVED PASSENGERS</span><strong>{passengers.length}/{MAX_PASSENGERS}</strong><span className="y-muted">Travel companion profiles</span></div>
             </div>
             <div className="y-card" style={{ marginTop: 22 }}>
               <div className="y-row"><div><h2 style={{ margin: 0 }}>Account details</h2><p className="y-muted">Your registered contact information</p></div><button className="y-btn secondary" onClick={openProfile}>Edit profile</button></div>
@@ -320,7 +345,7 @@ export default function AccountsPage() {
           <section className="y-card" style={{ maxWidth: 650, margin: 'auto' }}>
             <div className="y-kicker">Personal information</div>
             <h1 className="y-title">My profile</h1>
-            <p className="y-sub">Update the name and phone number associated with your demo account.</p>
+            <p className="y-sub">Update the name and phone number associated with your account.</p>
             <form className="y-form" onSubmit={(event) => { event.preventDefault(); updateProfile(); }}>
               <div className="y-field"><label htmlFor="profile-name">Full name</label><input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} required /></div>
               <div className="y-field"><label htmlFor="profile-email">Email address (read-only)</label><input id="profile-email" type="email" value={user.email} readOnly /></div>
@@ -335,7 +360,7 @@ export default function AccountsPage() {
           <>
             <div className="y-kicker">Travel companions</div>
             <h1 className="y-title">Saved passengers</h1>
-            <p className="y-sub">Keep passenger details ready for future bookings. You can save up to 10 passengers in this demo.</p>
+            <p className="y-sub">Keep passenger details ready for future bookings. You can save up to 10 passengers.</p>
             <section className="y-card">
               <h2 style={{ marginTop: 0 }}>Add a passenger</h2>
               <form className="y-form" onSubmit={(event) => { event.preventDefault(); savePassenger(); }}>
@@ -345,11 +370,11 @@ export default function AccountsPage() {
                   <div className="y-field"><label htmlFor="passenger-gender">Gender</label><select id="passenger-gender" value={pGender} onChange={(e) => setPGender(e.target.value)}><option>Female</option><option>Male</option><option>Other</option><option>Prefer not to say</option></select></div>
                 </div>
                 {message && <div className="y-message" role="status">{message}</div>}
-                <button className="y-btn" type="submit" disabled={passengers.length >= 10} style={passengers.length >= 10 ? { opacity: 0.55, cursor: 'not-allowed' } : {}}>+ Add passenger</button>
+                <button className="y-btn" type="submit" disabled={passengers.length >= MAX_PASSENGERS} style={passengers.length >= MAX_PASSENGERS ? { opacity: 0.55, cursor: 'not-allowed' } : {}}>+ Add passenger</button>
               </form>
             </section>
             <section className="y-card" style={{ marginTop: 20 }}>
-              <div className="y-row"><h2 style={{ margin: 0 }}>Your passengers</h2><span className="y-muted">{passengers.length} of 10 saved</span></div>
+              <div className="y-row"><h2 style={{ margin: 0 }}>Your passengers</h2><span className="y-muted">{passengers.length} of {MAX_PASSENGERS} saved</span></div>
               {passengers.length === 0 ? <p className="y-muted">No saved passengers yet. Add your first passenger above.</p> : (
                 <div className="y-list">
                   {passengers.map((passenger) => (
@@ -364,7 +389,7 @@ export default function AccountsPage() {
           </>
         )}
       </main>
-      <footer className="y-footer">Yatrio · Group 1 — Accounts and Access · Frontend demo</footer>
+      <footer className="y-footer">Yatrio · Accounts and Access</footer>
     </div>
   );
 }

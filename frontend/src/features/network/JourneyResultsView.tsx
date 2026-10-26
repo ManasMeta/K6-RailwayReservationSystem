@@ -55,6 +55,18 @@ function DirectTrainCard({ leg, date }: { leg: Leg; date: string }) {
         >
           {showAvailability ? "Hide Seats & Fares" : "Check Seats & Fares"}
         </button>
+        <Link
+          className="primary book-link"
+          to={`/book?${new URLSearchParams({
+            train: leg.train_no,
+            name: leg.train_name,
+            from: leg.from_code,
+            to: leg.to_code,
+            date: leg.run_date,
+          })}`}
+        >
+          Book
+        </Link>
       </div>
       {showAvailability && (
         <AvailabilityGrid

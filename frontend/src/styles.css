@@ -164,7 +164,9 @@ h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
   border-top: 1px solid var(--line);
   display: flex;
   justify-content: flex-end;
+  gap: 0.75rem;
 }
+.book-link { text-decoration: none; display: inline-block; }
 
 .availability-card {
   margin-top: 1rem;

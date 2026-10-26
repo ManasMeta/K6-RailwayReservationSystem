@@ -11,37 +11,29 @@ import {
   UserX,
   Users,
 } from 'lucide-react';
-import { useReservations, useConfirmReservation } from '../hooks/useReservations';
+import { useReservations } from '../hooks/useReservations';
 import { Reservation, ReservationStatus } from '../types';
 import { CancelModal } from './CancelModal';
 import { HoldCountdownTimer } from './HoldCountdownTimer';
 
 interface MyJourneysProps {
   onNewBookingClick?: () => void;
+  /** Called when the passenger chooses to pay for a held reservation. */
+  onPayClick?: (pnr: string) => void;
 }
 
-export const MyJourneys: React.FC<MyJourneysProps> = ({ onNewBookingClick }) => {
+export const MyJourneys: React.FC<MyJourneysProps> = ({ onNewBookingClick, onPayClick }) => {
   const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'CANCELLED'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [copiedPnr, setCopiedPnr] = useState<string | null>(null);
   const [selectedForCancel, setSelectedForCancel] = useState<Reservation | null>(null);
 
   const { data, isLoading, error, refetch } = useReservations({ page: 1, page_size: 20 });
-  const confirmMutation = useConfirmReservation();
 
   const handleCopyPnr = (pnr: string) => {
     navigator.clipboard.writeText(pnr);
     setCopiedPnr(pnr);
     setTimeout(() => setCopiedPnr(null), 2000);
-  };
-
-  const handlePayNow = async (pnr: string) => {
-    try {
-      await confirmMutation.mutateAsync(pnr);
-      refetch();
-    } catch (err) {
-      console.error('Failed to confirm payment:', err);
-    }
   };
 
   // Filter journeys by tab and search query
@@ -332,8 +324,7 @@ export const MyJourneys: React.FC<MyJourneysProps> = ({ onNewBookingClick }) => 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/70">
                 {res.status === 'PENDING_PAYMENT' && (
                   <button
-                    onClick={() => handlePayNow(res.pnr)}
-                    disabled={confirmMutation.isPending}
+                    onClick={() => onPayClick?.(res.pnr)}
                     className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
                   >
                     <CreditCard className="w-3.5 h-3.5" />

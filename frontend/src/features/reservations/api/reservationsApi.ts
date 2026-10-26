@@ -53,49 +53,7 @@ export const reservationsApi = {
 
   // Fetch G1 Saved Passengers
   getSavedPassengers: async (): Promise<SavedPassenger[]> => {
-    try {
-      const res = await apiClient.get<SavedPassenger[]>('/me/passengers');
-      return res.data;
-    } catch {
-      // Mock fallback data for G1 saved passengers if running standalone
-      return [
-        {
-          passenger_id: 1,
-          user_id: 1,
-          full_name: 'Aarav Sharma',
-          age: 29,
-          gender: 'Male',
-          berth_preference: 'LB',
-          senior_citizen: false,
-        },
-        {
-          passenger_id: 2,
-          user_id: 1,
-          full_name: 'Diya Sharma',
-          age: 27,
-          gender: 'Female',
-          berth_preference: 'MB',
-          senior_citizen: false,
-        },
-        {
-          passenger_id: 3,
-          user_id: 1,
-          full_name: 'Ramesh Sharma',
-          age: 64,
-          gender: 'Male',
-          berth_preference: 'LB',
-          senior_citizen: true,
-        },
-        {
-          passenger_id: 4,
-          user_id: 1,
-          full_name: 'Sunita Sharma',
-          age: 61,
-          gender: 'Female',
-          berth_preference: 'LB',
-          senior_citizen: true,
-        },
-      ];
-    }
+    const res = await apiClient.get<SavedPassenger[]>('/me/passengers');
+    return res.data;
   },
 };

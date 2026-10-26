@@ -1,18 +1,50 @@
 import axios from "axios";
 
-// Shared axios instance. G1 owns this file: the bearer-token interceptor below
-// is a placeholder until the auth module stores the real JWT.
+const TOKEN_KEY = "nrrms_token";
+
+export function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token: string): void {
+  try {
+    localStorage.setItem(TOKEN_KEY, token);
+  } catch {
+    // storage unavailable: the session lasts until the page reloads
+  }
+}
+
+export function clearToken(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+  } catch {
+    // nothing stored
+  }
+}
+
+// Shared axios instance. G1 owns this file: the interceptor adds the bearer token
+// that /auth/login and /auth/signup return.
 export const api = axios.create({ baseURL: "/api/v1" });
 
 api.interceptors.request.use((config) => {
-  try {
-    const token = localStorage.getItem("nrrms_token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  } catch {
-    // storage unavailable: continue unauthenticated
-  }
+  const token = getToken();
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+// An expired or revoked token would otherwise keep being sent; drop it so protected
+// pages send the user back to sign in.
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (axios.isAxiosError(error) && error.response?.status === 401) clearToken();
+    return Promise.reject(error);
+  },
+);
 
 /** Message from the {"detail", "code"} error body, or a generic fallback. */
 export function errorMessage(error: unknown): string {
