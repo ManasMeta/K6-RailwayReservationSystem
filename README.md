@@ -499,7 +499,7 @@ export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nrrms
 export JWT_SECRET=any-long-random-string-for-local-use
 
 python db/migrate.py up                    # all groups, in order; a rerun changes nothing
-python db/import/load_sample.py            # 5 stations, 6 trains (or load_train_details.py CSV for the full file)
+python db/import/load_sample.py            # 1,899-row sample: 86 stations, 475 trains (or load_train_details.py CSV for the full file)
 python db/import/generate_inventory.py     # coaches and berths
 psql "$DATABASE_URL" -f db/seeds/g1_demo_users.sql   # optional demo accounts, see below
 psql "$DATABASE_URL" -f db/seeds/g6_demo_data.sql    # optional demo bookings, runs and charts

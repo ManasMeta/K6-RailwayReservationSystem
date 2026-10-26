@@ -16,7 +16,7 @@ SAMPLE = IMPORT_DIR.parent / "seeds" / "g2_train_details_sample.csv"
 def test_read_rows_skips_header_and_keeps_raw_padding():
     rows = list(load_train_details.read_rows(SAMPLE))
 
-    assert len(rows) == 18
+    assert len(rows) == 1899
     assert rows[0][3] == "HWH "  # trimming happens in SQL, not Python
 
 

@@ -1,7 +1,8 @@
-"""CI helper: import the small G2 fixture (db/seeds/g2_train_details_sample.csv).
+"""CI helper: import the G2 sample timetable (db/seeds/g2_train_details_sample.csv).
 
-The real file is loaded with load_train_details.py; CI uses a 500-row sample
-of the same layout.
+The real file is loaded with load_train_details.py; CI uses a 1,899-row sample
+of the same layout: 6 hand-written trains that the tests assert on, then
+generated trains on real corridors.
 """
 import sys
 from pathlib import Path

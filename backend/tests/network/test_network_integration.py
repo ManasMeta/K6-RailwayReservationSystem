@@ -58,8 +58,16 @@ def test_connecting_journey_respects_wait_window(client):
     ).json()
 
     assert body["direct"] == []
-    assert len(body["connecting"]) == 1
-    journey = body["connecting"][0]
+    # The generated timetable adds other connections; the fixture's 12301 + CNB trains
+    # keep their meaning: only the 70 minute wait is inside the 30 min - 6 h window.
+    fixture = [
+        j for j in body["connecting"]
+        if j["leg1"]["train_no"] == "12301"
+        and j["leg2"]["train_no"] in {"12420", "12090", "11111", "22222"}
+    ]
+    assert len(fixture) == 1
+    journey = fixture[0]
+    assert journey["rank"] == 1
     assert journey["interchange"]["station_code"] == "CNB"
     assert journey["wait_minutes"] == 70
     assert journey["leg2"]["train_no"] == "12420"

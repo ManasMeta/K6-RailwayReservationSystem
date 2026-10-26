@@ -4,7 +4,7 @@
 --
 -- Load order on a fresh database:
 --   python db/migrate.py up
---   python db/import/load_sample.py          (sample timetable: 5 stations, 6 trains)
+--   python db/import/load_sample.py          (sample timetable: 86 stations, 475 trains; this seed uses the 6 hand-written ones)
 --   python db/import/generate_inventory.py   (coaches and berths)
 --   psql -f db/seeds/g1_demo_users.sql       (demo accounts)
 --   psql -f db/seeds/g6_demo_data.sql        (this file)

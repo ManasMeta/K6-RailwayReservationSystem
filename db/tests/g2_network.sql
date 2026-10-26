@@ -7,8 +7,11 @@ BEGIN;
 -- 1. Import normalised the fixture: padding removed, one row per station.
 DO $$
 BEGIN
-    IF (SELECT count(*) FROM stations) <> 5 THEN
-        RAISE EXCEPTION 'expected 5 stations, got %', (SELECT count(*) FROM stations);
+    IF (SELECT count(*) FROM stations) <> 86 THEN
+        RAISE EXCEPTION 'expected 86 stations, got %', (SELECT count(*) FROM stations);
+    END IF;
+    IF (SELECT count(*) FROM trains) <> 475 THEN
+        RAISE EXCEPTION 'expected 475 trains, got %', (SELECT count(*) FROM trains);
     END IF;
     IF EXISTS (SELECT 1 FROM stations WHERE name <> btrim(name) OR station_code <> btrim(station_code)) THEN
         RAISE EXCEPTION 'station values still carry padding';
@@ -19,8 +22,9 @@ BEGIN
     IF EXISTS (SELECT 1 FROM trains WHERE train_no LIKE '%''%') THEN
         RAISE EXCEPTION 'train_no kept CSV quote characters';
     END IF;
-    IF (SELECT count(*) FROM train_stops) <> 17 THEN
-        RAISE EXCEPTION 'malformed fixture row was not skipped';
+    IF (SELECT count(*) FROM train_stops) <> 1898 THEN
+        RAISE EXCEPTION 'malformed fixture row was not skipped, got % stops',
+            (SELECT count(*) FROM train_stops);
     END IF;
     IF (SELECT count(*) FROM staging_train_stops) <> 0 THEN
         RAISE EXCEPTION 'staging was not truncated';
@@ -88,7 +92,8 @@ DO $$
 DECLARE
     r RECORD;
 BEGIN
-    SELECT * INTO r FROM search_direct_journeys('hwh', 'NDLS', DATE '2026-11-02');
+    SELECT * INTO r FROM search_direct_journeys('hwh', 'NDLS', DATE '2026-11-02')
+    WHERE train_no = '12301';
     IF r.train_no <> '12301' OR r.duration_minutes <> 1030 OR r.distance_km <> 1447
        OR r.arrive_at <> TIMESTAMP '2026-11-03 10:05' THEN
         RAISE EXCEPTION 'direct HWH->NDLS wrong: %', r;
@@ -101,8 +106,10 @@ BEGIN
         RAISE EXCEPTION '22222 run_date wrong: %', r;
     END IF;
 
-    -- Wrong direction and unknown station return nothing.
-    IF EXISTS (SELECT 1 FROM search_direct_journeys('LKO', 'CNB', DATE '2026-11-03')) THEN
+    -- Wrong direction and unknown station return nothing: the four fixture trains
+    -- only run CNB -> LKO (the generated trains do run the other way).
+    IF EXISTS (SELECT 1 FROM search_direct_journeys('LKO', 'CNB', DATE '2026-11-03')
+               WHERE train_no IN ('12420', '12090', '11111', '22222')) THEN
         RAISE EXCEPTION 'reverse direction should have no trains';
     END IF;
     IF EXISTS (SELECT 1 FROM search_direct_journeys('ZZZ', 'CNB', DATE '2026-11-03')) THEN
@@ -116,10 +123,12 @@ BEGIN
     -- 2026-11-02 is a Monday (ISO 1).
     DELETE FROM train_running_days
     WHERE weekday = 1 AND train_id = (SELECT train_id FROM trains WHERE train_no = '12301');
-    IF EXISTS (SELECT 1 FROM search_direct_journeys('HWH', 'NDLS', DATE '2026-11-02')) THEN
+    IF EXISTS (SELECT 1 FROM search_direct_journeys('HWH', 'NDLS', DATE '2026-11-02')
+               WHERE train_no = '12301') THEN
         RAISE EXCEPTION '12301 should not run on Monday';
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM search_direct_journeys('HWH', 'NDLS', DATE '2026-11-03')) THEN
+    IF NOT EXISTS (SELECT 1 FROM search_direct_journeys('HWH', 'NDLS', DATE '2026-11-03')
+                   WHERE train_no = '12301') THEN
         RAISE EXCEPTION '12301 should still run on Tuesday';
     END IF;
 END $$;
@@ -131,10 +140,14 @@ DO $$
 DECLARE
     r RECORD;
 BEGIN
-    IF (SELECT count(*) FROM search_connecting_journeys('HWH', 'LKO', DATE '2026-11-02')) <> 1 THEN
+    -- Only the fixture trains are counted: 12301 then one of the four CNB -> LKO trains.
+    IF (SELECT count(*) FROM search_connecting_journeys('HWH', 'LKO', DATE '2026-11-02')
+        WHERE leg1_train_no = '12301'
+          AND leg2_train_no IN ('12420', '12090', '11111', '22222')) <> 1 THEN
         RAISE EXCEPTION 'expected exactly one HWH->LKO connection (20 min and 6h40 waits excluded)';
     END IF;
-    SELECT * INTO r FROM search_connecting_journeys('HWH', 'LKO', DATE '2026-11-02');
+    SELECT * INTO r FROM search_connecting_journeys('HWH', 'LKO', DATE '2026-11-02')
+    WHERE leg1_train_no = '12301' AND leg2_train_no IN ('12420', '12090', '11111', '22222');
     IF r.rank <> 1 OR r.interchange_code <> 'CNB' OR r.wait_minutes <> 70
        OR r.total_minutes <> 845 OR r.leg1_train_no <> '12301' OR r.leg2_train_no <> '12420'
        OR r.leg2_run_date <> DATE '2026-11-03' THEN
