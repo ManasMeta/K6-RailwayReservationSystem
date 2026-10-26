@@ -1,6 +1,10 @@
 # Deploys on pushes: develop -> staging, main -> production.
 # Migrations always run first, so the new backend never meets an older schema.
 #
+# Nothing deploys until you turn it on: set the repository variable DEPLOY_ENABLED to "true"
+# (Settings -> Secrets and variables -> Actions -> Variables) after adding the secrets below.
+# Until then every job here is skipped, so a push to main does not fail for missing secrets.
+#
 # Configure two GitHub Environments, "staging" and "production", each with:
 #   secrets:   DATABASE_URL        admin connection string (runs migrations, creates the app login)
 #              APP_DB_PASSWORD     password for the restricted nrrms_api login
@@ -22,6 +26,7 @@ concurrency:
 jobs:
   checks:
     name: wait for CI on this commit
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       checks: read
