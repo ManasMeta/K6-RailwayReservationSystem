@@ -230,47 +230,54 @@ export default function AccountsPage() {
     }
   }, [user]);
 
+  // Reads the shared tokens from styles.css (see Design.md), so it follows light and dark mode.
   const styles = `
-    * { box-sizing: border-box; }
-    .yatrio { min-height: calc(100vh - 3.2rem); background: #f3f6fc; color: #18233c; font-family: Inter, system-ui, Arial, sans-serif; }
-    .y-nav { background: #102b55; color: white; padding: 17px 5%; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
-    .y-brand { font-size: 25px; font-weight: 800; letter-spacing: -.7px; }
-    .y-brand span { color: #61d8c4; }
-    .y-nav small { color: #d0def2; display: block; font-size: 11px; font-weight: 400; letter-spacing: 1.5px; }
-    .y-nav-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-    .y-nav button { background: transparent; color: white; border: 1px solid #607795; border-radius: 8px; padding: 9px 12px; cursor: pointer; }
-    .y-nav button:hover, .y-nav button.active { background: #254775; }
-    .y-main { max-width: 1050px; padding: 38px 20px 60px; margin: auto; }
-    .y-card { background: white; border: 1px solid #e1e8f2; border-radius: 18px; padding: 28px; box-shadow: 0 8px 28px #18345c0b; }
-    .y-auth { max-width: 490px; margin: 15px auto; }
-    .y-kicker { color: #128b82; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.6px; }
-    .y-title { margin: 8px 0; font-size: clamp(25px, 4vw, 34px); letter-spacing: -1px; }
-    .y-sub { color: #6c7890; line-height: 1.6; margin-bottom: 23px; }
-    .y-form { display: grid; gap: 15px; }
-    .y-field label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 7px; }
-    .y-field input, .y-field select { width: 100%; border: 1px solid #d8e1ee; border-radius: 9px; padding: 12px; font: inherit; background: white; color: #18233c; }
-    .y-field input:focus, .y-field select:focus { outline: 2px solid #87dcd0; border-color: #168f86; }
-    .y-btn { border: 0; border-radius: 9px; background: #087f78; color: white; padding: 12px 16px; font-weight: 750; font-size: 14px; cursor: pointer; }
-    .y-btn:hover { background: #066a64; }
-    .y-btn.secondary { background: #edf3fa; color: #18345c; }
-    .y-btn.danger { background: #fff0f0; color: #b32636; }
-    .y-switch { color: #65728a; font-size: 14px; text-align: center; margin-top: 18px; }
-    .y-link { border: 0; background: transparent; color: #087f78; font-weight: 800; cursor: pointer; }
-    .y-message { background: #e9f8f4; border: 1px solid #bce7da; color: #116b58; padding: 11px 13px; border-radius: 9px; margin: 15px 0; font-size: 14px; }
-    .y-message.error { background: #fff0f0; color: #a52836; border-color: #f2c6cb; }
-    .y-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin-top: 22px; }
-    .y-stat { padding: 21px; border-radius: 15px; background: white; border: 1px solid #e1e8f2; }
-    .y-stat strong { display: block; font-size: 29px; margin: 8px 0; }
-    .y-muted { color: #738097; font-size: 13px; }
-    .y-row { display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; }
-    .y-list { display: grid; gap: 12px; margin-top: 20px; }
-    .y-person { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 16px; border: 1px solid #e2e9f3; border-radius: 12px; }
-    .y-avatar { width: 43px; height: 43px; display: grid; place-items: center; background: #dff5f0; color: #087f78; font-weight: 800; border-radius: 13px; flex-shrink: 0; }
-    .y-person-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
-    .y-person-info strong { display: block; }
-    .y-person-info small { display: block; color: #738097; margin-top: 4px; }
-    .y-footer { text-align: center; color: #7a879c; padding: 20px; font-size: 12px; }
-    @media(max-width: 560px) { .y-main { padding: 24px 13px 40px; } .y-card { padding: 20px; } .y-nav { padding: 15px; } .y-person { align-items: flex-start; } }
+    .yatrio { width: min(100% - 32px, 64rem); margin: 0 auto; padding: 48px 0 96px; color: var(--ink); }
+    .y-nav { display: flex; justify-content: center; margin-bottom: 48px; }
+    .y-nav-actions { display: inline-flex; flex-wrap: wrap; justify-content: center; gap: 4px; padding: 4px; background: var(--canvas-soft); border-radius: var(--r-full); }
+    .y-nav button { height: 40px; padding: 0 18px; border: 0; border-radius: var(--r-full); background: transparent; color: var(--muted); font-weight: var(--w-strong); }
+    .y-nav button:hover { color: var(--ink); }
+    .y-nav button.active { background: var(--canvas); color: var(--ink); box-shadow: var(--segment-shadow); }
+    .y-main { max-width: 64rem; margin: 0 auto; }
+    .y-card { background: var(--canvas); border: 1px solid var(--hairline); border-radius: var(--r-md); padding: 32px; }
+    .y-auth { max-width: 30rem; margin: 16px auto 0; padding: 40px; }
+    .y-kicker { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: var(--r-full); background: var(--canvas-soft); color: var(--ink); font-size: 12px; font-weight: var(--w-strong); }
+    .y-title { margin: 16px 0 8px; font-size: clamp(2rem, 4.5vw, 3.5rem); line-height: 1; }
+    .y-auth .y-title { font-size: 2rem; line-height: 1.13; }
+    .y-sub { margin: 0 0 32px; color: var(--muted); font-size: 1.25rem; font-weight: var(--w-light); line-height: 1.38; }
+    .y-auth .y-sub { font-size: 1rem; font-weight: var(--w-body); margin-bottom: 28px; }
+    .y-form { display: grid; gap: 16px; }
+    .y-field label { display: block; font-size: 13px; font-weight: var(--w-strong); color: var(--muted); margin-bottom: 8px; }
+    .y-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 20px; border: 1px solid transparent; border-radius: var(--r-full); background: var(--primary); color: var(--on-primary); font-weight: var(--w-strong); font-size: 1rem; }
+    .y-btn:hover { background: var(--primary-hover); }
+    .y-form > .y-btn { min-height: 48px; margin-top: 8px; }
+    .y-btn.secondary { background: var(--canvas); color: var(--ink); border-color: var(--hairline); }
+    .y-btn.secondary:hover { border-color: var(--ink); }
+    .y-btn.danger { background: var(--canvas); color: var(--danger); border-color: var(--hairline); min-height: 36px; padding: 0 14px; font-size: 14px; }
+    .y-btn.danger:hover { border-color: var(--danger); }
+    .y-switch { color: var(--muted); font-size: 14px; text-align: center; margin: 24px 0 0; }
+    .y-link { border: 0; background: transparent; padding: 0; color: var(--ink); font-weight: var(--w-strong); text-decoration: underline; text-underline-offset: 3px; }
+    .y-message { background: var(--canvas-soft); color: var(--ink); padding: 12px 18px; border-radius: var(--r-sm); margin: 4px 0; font-size: 14px; font-weight: var(--w-strong); }
+    .y-message.error { background: var(--danger-soft); color: var(--danger); }
+    .y-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; margin-top: 8px; }
+    .y-stat { padding: 24px; border-radius: var(--r-md); background: var(--canvas-soft); }
+    .y-stat strong { display: block; font-size: 2.75rem; font-weight: var(--w-heading); line-height: 1.13; margin: 12px 0 4px; font-variant-numeric: tabular-nums; }
+    .y-muted { color: var(--muted); font-size: 14px; }
+    .y-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .y-card h2 { font-size: 1.5rem; line-height: 1.25; margin: 0 0 16px; }
+    .y-card .y-row h2 { margin: 0; }
+    .y-card .y-row p { margin: 4px 0 0; }
+    .y-details { display: grid; margin: 24px 0; }
+    .y-details > div { display: flex; justify-content: space-between; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--hairline-soft); }
+    .y-details dt { color: var(--muted); }
+    .y-details dd { margin: 0; font-weight: var(--w-strong); text-align: right; overflow-wrap: anywhere; }
+    .y-list { display: grid; gap: 8px; margin-top: 24px; }
+    .y-person { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 12px 12px 14px; border-radius: var(--r-sm); background: var(--canvas-soft); }
+    .y-avatar { width: 44px; height: 44px; display: grid; place-items: center; background: var(--primary); color: var(--on-primary); font-weight: var(--w-heading); border-radius: var(--r-squircle); flex-shrink: 0; }
+    .y-person-info { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .y-person-info strong { display: block; font-weight: var(--w-strong); }
+    .y-person-info small { display: block; color: var(--muted); margin-top: 2px; font-size: 14px; }
+    @media (max-width: 560px) { .yatrio { padding-top: 32px; } .y-card, .y-auth { padding: 24px; } }
   `;
 
   return (
@@ -278,7 +285,6 @@ export default function AccountsPage() {
       <style>{styles}</style>
       {user && (
         <header className="y-nav">
-          <div className="y-brand">Your account</div>
           <nav className="y-nav-actions" aria-label="Account navigation">
             <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>Dashboard</button>
             <button className={page === 'profile' ? 'active' : ''} onClick={openProfile}>My Profile</button>
@@ -294,7 +300,7 @@ export default function AccountsPage() {
         {!restoring && !user && page === 'login' && (
           <section className="y-card y-auth">
             <div className="y-kicker">Welcome aboard</div>
-            <h1 className="y-title">Sign in to Yatrio</h1>
+            <h1 className="y-title">Sign in to RailYatri</h1>
             <p className="y-sub">Log in to manage your account and saved passengers.</p>
             <form className="y-form" onSubmit={(event) => { event.preventDefault(); login(); }}>
               <div className="y-field"><label htmlFor="login-email">Email address</label><input id="login-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
@@ -302,7 +308,7 @@ export default function AccountsPage() {
               {message && <div className="y-message error" role="alert">{message}</div>}
               <button className="y-btn" type="submit">Sign in →</button>
             </form>
-            <p className="y-switch">New to Yatrio? <button className="y-link" onClick={() => { setPage('register'); setMessage(''); }}>Create an account</button></p>
+            <p className="y-switch">New to RailYatri? <button className="y-link" onClick={() => { setPage('register'); setMessage(''); }}>Create an account</button></p>
           </section>
         )}
 
@@ -310,7 +316,7 @@ export default function AccountsPage() {
           <section className="y-card y-auth">
             <div className="y-kicker">Start your journey</div>
             <h1 className="y-title">Create an account</h1>
-            <p className="y-sub">Enter your details to get started with Yatrio.</p>
+            <p className="y-sub">Enter your details to get started with RailYatri.</p>
             <form className="y-form" onSubmit={(event) => { event.preventDefault(); register(); }}>
               <div className="y-field"><label htmlFor="reg-name">Full name</label><input id="reg-name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required /></div>
               <div className="y-field"><label htmlFor="reg-email">Email address</label><input id="reg-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
@@ -326,23 +332,23 @@ export default function AccountsPage() {
         {user && page === 'dashboard' && (
           <>
             <div className="y-kicker">Your account</div>
-            <h1 className="y-title">Welcome, {user.name.split(' ')[0]} 👋</h1>
-            <p className="y-sub">Manage your Yatrio account details and travel companions from one place.</p>
+            <h1 className="y-title">Welcome, {user.name.split(' ')[0]}.</h1>
+            <p className="y-sub">Manage your RailYatri account details and travel companions from one place.</p>
             <div className="y-grid">
-              <div className="y-stat"><span className="y-muted">ACCOUNT STATUS</span><strong>Active</strong><span className="y-muted">Signed in</span></div>
-              <div className="y-stat"><span className="y-muted">YOUR ROLE</span><strong>{user.role}</strong><span className="y-muted">Assigned by Yatrio</span></div>
-              <div className="y-stat"><span className="y-muted">SAVED PASSENGERS</span><strong>{passengers.length}/{MAX_PASSENGERS}</strong><span className="y-muted">Travel companion profiles</span></div>
+              <div className="y-stat"><span className="y-muted">Account status</span><strong>Active</strong><span className="y-muted">Signed in</span></div>
+              <div className="y-stat"><span className="y-muted">Your role</span><strong>{user.role}</strong><span className="y-muted">Assigned by RailYatri</span></div>
+              <div className="y-stat"><span className="y-muted">Saved passengers</span><strong>{passengers.length}/{MAX_PASSENGERS}</strong><span className="y-muted">Travel companion profiles</span></div>
             </div>
-            <div className="y-card" style={{ marginTop: 22 }}>
-              <div className="y-row"><div><h2 style={{ margin: 0 }}>Account details</h2><p className="y-muted">Your registered contact information</p></div><button className="y-btn secondary" onClick={openProfile}>Edit profile</button></div>
-              <p><strong>Name:</strong> {user.name}</p><p><strong>Email:</strong> {user.email}</p><p><strong>Phone:</strong> {user.phone}</p>
+            <div className="y-card" style={{ marginTop: 12 }}>
+              <div className="y-row"><div><h2>Account details</h2><p className="y-muted">Your registered contact information</p></div><button className="y-btn secondary" onClick={openProfile}>Edit profile</button></div>
+              <dl className="y-details"><div><dt>Name</dt><dd>{user.name}</dd></div><div><dt>Email</dt><dd>{user.email}</dd></div><div><dt>Phone</dt><dd>{user.phone}</dd></div></dl>
               <button className="y-btn" onClick={() => { setPage('passengers'); setMessage(''); }}>Manage saved passengers →</button>
             </div>
           </>
         )}
 
         {user && page === 'profile' && (
-          <section className="y-card" style={{ maxWidth: 650, margin: 'auto' }}>
+          <section className="y-card y-auth" style={{ maxWidth: 640 }}>
             <div className="y-kicker">Personal information</div>
             <h1 className="y-title">My profile</h1>
             <p className="y-sub">Update the name and phone number associated with your account.</p>
@@ -362,10 +368,10 @@ export default function AccountsPage() {
             <h1 className="y-title">Saved passengers</h1>
             <p className="y-sub">Keep passenger details ready for future bookings. You can save up to 10 passengers.</p>
             <section className="y-card">
-              <h2 style={{ marginTop: 0 }}>Add a passenger</h2>
+              <h2>Add a passenger</h2>
               <form className="y-form" onSubmit={(event) => { event.preventDefault(); savePassenger(); }}>
                 <div className="y-field"><label htmlFor="passenger-name">Passenger full name</label><input id="passenger-name" value={pName} onChange={(e) => setPName(e.target.value)} required /></div>
-                <div className="y-grid" style={{ marginTop: 0 }}>
+                <div className="y-grid" style={{ marginTop: 0, gap: 16 }}>
                   <div className="y-field"><label htmlFor="passenger-age">Age</label><input id="passenger-age" type="number" min="1" max="120" value={pAge} onChange={(e) => setPAge(e.target.value)} required /></div>
                   <div className="y-field"><label htmlFor="passenger-gender">Gender</label><select id="passenger-gender" value={pGender} onChange={(e) => setPGender(e.target.value)}><option>Female</option><option>Male</option><option>Other</option><option>Prefer not to say</option></select></div>
                 </div>
@@ -373,8 +379,8 @@ export default function AccountsPage() {
                 <button className="y-btn" type="submit" disabled={passengers.length >= MAX_PASSENGERS} style={passengers.length >= MAX_PASSENGERS ? { opacity: 0.55, cursor: 'not-allowed' } : {}}>+ Add passenger</button>
               </form>
             </section>
-            <section className="y-card" style={{ marginTop: 20 }}>
-              <div className="y-row"><h2 style={{ margin: 0 }}>Your passengers</h2><span className="y-muted">{passengers.length} of {MAX_PASSENGERS} saved</span></div>
+            <section className="y-card" style={{ marginTop: 12 }}>
+              <div className="y-row"><h2>Your passengers</h2><span className="y-muted">{passengers.length} of {MAX_PASSENGERS} saved</span></div>
               {passengers.length === 0 ? <p className="y-muted">No saved passengers yet. Add your first passenger above.</p> : (
                 <div className="y-list">
                   {passengers.map((passenger) => (
@@ -389,7 +395,6 @@ export default function AccountsPage() {
           </>
         )}
       </main>
-      <footer className="y-footer">Yatrio · Accounts and Access</footer>
     </div>
   );
 }

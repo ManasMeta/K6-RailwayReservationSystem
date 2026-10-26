@@ -95,7 +95,7 @@ describe("AccountsPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /log out/i }));
 
     await waitFor(() => expect(getToken()).toBeNull());
-    expect(screen.getByRole("heading", { name: /sign in to yatrio/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /sign in to railyatri/i })).toBeInTheDocument();
   });
 
   it("drops a token the server no longer accepts", async () => {
@@ -103,7 +103,7 @@ describe("AccountsPage", () => {
     vi.spyOn(api, "get").mockRejectedValue(new Error("401"));
     renderAt("/accounts");
 
-    expect(await screen.findByRole("heading", { name: /sign in to yatrio/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /sign in to railyatri/i })).toBeInTheDocument();
     expect(getToken()).toBeNull();
   });
 });
@@ -111,7 +111,7 @@ describe("AccountsPage", () => {
 describe("RequireAuth", () => {
   it("sends signed-out visitors to sign in", async () => {
     renderAt("/book?train=12424");
-    expect(await screen.findByRole("heading", { name: /sign in to yatrio/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /sign in to railyatri/i })).toBeInTheDocument();
     expect(screen.queryByText("Booking screen")).not.toBeInTheDocument();
   });
 

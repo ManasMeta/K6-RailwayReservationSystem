@@ -80,78 +80,55 @@ export const TatkalCountdown: React.FC<TatkalCountdownProps> = ({
 
   const { isOpen, hours, minutes, seconds, openDateStr } = timeDiff;
 
+  const unit = (value: number, label: string) => (
+    <div className="flex flex-col items-center min-w-[3.25rem] py-1.5 rounded-tile bg-canvas">
+      <span className="text-xl font-heading leading-tight tabular-nums">{String(value).padStart(2, '0')}</span>
+      <span className="text-[10px] font-strong text-muted">{label}</span>
+    </div>
+  );
+
   return (
-    <div
-      className={`p-4 rounded-xl border backdrop-blur-md transition-all ${
-        isOpen
-          ? 'border-emerald-500/40 bg-emerald-950/20 text-emerald-100'
-          : 'border-orange-500/40 bg-orange-950/20 text-orange-100'
-      } ${className}`}
-    >
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div className={`p-4 pl-5 rounded-tile bg-canvas-soft ${className}`}>
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div className="flex items-center gap-3">
-          <div
-            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-              isOpen ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'
-            }`}
-          >
-            {isOpen ? <Flame className="w-5 h-5 animate-pulse" /> : <Timer className="w-5 h-5" />}
+          <div className="w-11 h-11 rounded-squircle bg-canvas flex items-center justify-center flex-none">
+            {isOpen ? <Flame className="w-5 h-5" /> : <Timer className="w-5 h-5" />}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm tracking-wide">
-                Tatkal Quota ({classCode})
-              </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-strong text-sm">Tatkal quota ({classCode})</span>
+              {/* Accent marks the one decision on this screen: Tatkal is open, book now. */}
               <span
-                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                  isOpen
-                    ? 'bg-emerald-500/30 text-emerald-300'
-                    : 'bg-orange-500/30 text-orange-300'
+                className={`inline-flex items-center h-6 px-2.5 rounded-full text-[11px] font-strong ${
+                  isOpen ? 'bg-accent text-white' : 'bg-canvas text-ink shadow-[inset_0_0_0_1px_var(--hairline)]'
                 }`}
               >
-                {isOpen ? 'BOOKING OPEN' : 'OPENS 1 DAY BEFORE'}
+                {isOpen ? 'Booking open' : 'Opens 1 day before'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
+            <p className="text-xs text-muted mt-1 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
               <span>
-                Opens {openDateStr} at {targetHour}:00 AM ({isAc ? 'AC Class' : 'Non-AC Class'})
+                Opens {openDateStr} at {targetHour}:00 AM ({isAc ? 'AC class' : 'non-AC class'})
               </span>
             </p>
           </div>
         </div>
 
-        <div>
-          {isOpen ? (
-            <div className="flex items-center gap-1.5 text-emerald-400 font-medium text-xs bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/30">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Tatkal Booking is Active</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5">
-              <div className="flex flex-col items-center bg-slate-900/80 px-2.5 py-1 rounded border border-orange-500/30">
-                <span className="text-base font-mono font-bold text-orange-400">
-                  {String(hours).padStart(2, '0')}
-                </span>
-                <span className="text-[9px] text-slate-400 uppercase">Hours</span>
-              </div>
-              <span className="text-orange-400 font-bold">:</span>
-              <div className="flex flex-col items-center bg-slate-900/80 px-2.5 py-1 rounded border border-orange-500/30">
-                <span className="text-base font-mono font-bold text-orange-400">
-                  {String(minutes).padStart(2, '0')}
-                </span>
-                <span className="text-[9px] text-slate-400 uppercase">Mins</span>
-              </div>
-              <span className="text-orange-400 font-bold">:</span>
-              <div className="flex flex-col items-center bg-slate-900/80 px-2.5 py-1 rounded border border-orange-500/30">
-                <span className="text-base font-mono font-bold text-orange-400">
-                  {String(seconds).padStart(2, '0')}
-                </span>
-                <span className="text-[9px] text-slate-400 uppercase">Secs</span>
-              </div>
-            </div>
-          )}
-        </div>
+        {isOpen ? (
+          <div className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-canvas text-sm font-strong">
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Tatkal booking is active</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5" aria-label={`Opens in ${hours} hours ${minutes} minutes`}>
+            {unit(hours, 'Hours')}
+            <span className="font-heading text-muted">:</span>
+            {unit(minutes, 'Mins')}
+            <span className="font-heading text-muted">:</span>
+            {unit(seconds, 'Secs')}
+          </div>
+        )}
       </div>
     </div>
   );

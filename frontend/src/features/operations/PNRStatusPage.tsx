@@ -54,7 +54,7 @@ function PNRDetails({ pnr }: { pnr: PNRResponse }) {
     <div className="ops-pnr-results">
       <section className="ops-pnr-panel">
         <div className="ops-panel-heading">
-          <div><p className="ops-eyebrow">RESERVATION · PNR {pnr.pnr}</p><h2>{pnr.train_no} · {pnr.train_name}</h2></div>
+          <div><p className="ops-eyebrow">Reservation · PNR {pnr.pnr}</p><h2>{pnr.train_no} · {pnr.train_name}</h2></div>
           <span className={pnr.reservation_status.toLowerCase() === "confirmed" ? "ops-status ops-status--cnf" : "ops-status"}>
             {pnr.reservation_status.replace(/_/g, " ")}
           </span>
@@ -107,8 +107,8 @@ export function PNRStatusPage() {
   return (
     <main className="ops-pnr-page">
       <header className="ops-pnr-header">
-        <p className="ops-eyebrow">YATRIO · PASSENGER SERVICES</p>
-        <h1>Check PNR status</h1>
+        <p className="ops-eyebrow">Passenger services</p>
+        <h1>Check PNR status.</h1>
         <p className="ops-subtitle">View reservation and passenger status using your 10-digit PNR.</p>
       </header>
 

@@ -191,10 +191,10 @@ export function OperationsPage() {
     <div className="ops-shell">
       <aside className="ops-sidebar" aria-label="Operations navigation">
         <div className="ops-sidebar-brand">
-          <span className="ops-brand-mark" aria-hidden="true">Y</span>
-          <span><strong>Yatrio</strong><small>RAIL OPERATIONS</small></span>
+          <span className="ops-brand-mark" aria-hidden="true">R</span>
+          <span><strong>RailYatri</strong><small>Rail operations</small></span>
         </div>
-        <p className="ops-nav-label">WORKSPACE</p>
+        <p className="ops-nav-label">Workspace</p>
         <nav className="ops-side-nav">
           <button type="button" className={tab === "runs" ? "ops-side-link ops-side-link--active" : "ops-side-link"} onClick={() => setTab("runs")}>▦ &nbsp; Staff console</button>
           {showAnalytics && (
@@ -207,8 +207,8 @@ export function OperationsPage() {
       <main className="ops-main">
         <header className="ops-header">
           <div>
-            <p className="ops-eyebrow">OPERATIONS / CONTROL ROOM</p>
-            <h1>{tab === "runs" ? "Train operations" : "Admin analytics"}</h1>
+            <p className="ops-eyebrow">Operations · control room</p>
+            <h1>{tab === "runs" ? "Train operations." : "Admin analytics."}</h1>
             <p className="ops-subtitle">
               {tab === "runs" ? "Manage run status, delays, cancellations, and passenger charts." : "Review operational and revenue performance."}
             </p>
@@ -235,10 +235,10 @@ export function OperationsPage() {
         {tab === "runs" ? (
           <>
             <section className="ops-summary" aria-label="Run summary">
-              <SummaryCard kicker="IN VIEW" label="Total runs" value={runs.length} icon="▦" color="blue" />
-              <SummaryCard kicker="SCHEDULED" label="Scheduled" value={runs.filter((run) => run.status === "SCHEDULED").length} icon="◷" color="blue" />
-              <SummaryCard kicker="ATTENTION" label="Delayed" value={runs.filter((run) => run.status === "DELAYED").length} icon="!" color="amber" />
-              <SummaryCard kicker="CHARTS" label="Prepared" value={runs.filter((run) => run.chart_prepared).length} icon="✓" color="green" />
+              <SummaryCard kicker="In view" label="Total runs" value={runs.length} icon="▦" color="blue" />
+              <SummaryCard kicker="On schedule" label="Scheduled" value={runs.filter((run) => run.status === "SCHEDULED").length} icon="◷" color="blue" />
+              <SummaryCard kicker="Attention" label="Delayed" value={runs.filter((run) => run.status === "DELAYED").length} icon="!" color="amber" />
+              <SummaryCard kicker="Charts" label="Prepared" value={runs.filter((run) => run.chart_prepared).length} icon="✓" color="green" />
             </section>
             {actionMessage && <p className="ops-success" role="status">{actionMessage}</p>}
             {actionError && !dialog && <p className="ops-report-error" role="alert">{actionError}</p>}
@@ -311,14 +311,14 @@ export function OperationsPage() {
             <AnalyticsPanel demo={mode === "demo"} />
           </Suspense>
         )}
-        <footer className="ops-footer">Yatrio Operations · Train run monitoring</footer>
+        <footer className="ops-footer">RailYatri Operations · Train run monitoring</footer>
       </main>
 
       {dialog?.type === "delay" && (
         <div className="ops-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) closeDialog(); }}>
           <section className="ops-modal" role="dialog" aria-modal="true" aria-labelledby="ops-delay-title">
             <button type="button" className="ops-modal-close" aria-label="Close" onClick={closeDialog}>×</button>
-            <p className="ops-eyebrow">TRAIN {dialog.run.train_no}</p>
+            <p className="ops-eyebrow">Train {dialog.run.train_no}</p>
             <h2 id="ops-delay-title">Update delay</h2>
             <p className="ops-subtitle">{dialog.run.train_name} · {dialog.run.run_date}</p>
             <form className="ops-action-form" onSubmit={submitDelay}>
@@ -335,7 +335,7 @@ export function OperationsPage() {
       {dialog?.type === "cancel" && (
         <div className="ops-modal-backdrop" role="presentation">
           <section className="ops-modal" role="dialog" aria-modal="true" aria-labelledby="ops-cancel-title">
-            <p className="ops-eyebrow">DESTRUCTIVE ACTION · TRAIN {dialog.run.train_no}</p>
+            <p className="ops-eyebrow">Destructive action · Train {dialog.run.train_no}</p>
             <h2 id="ops-cancel-title">Cancel this train run?</h2>
             <p className="ops-confirm-copy">This will cancel the run for every passenger and initiate a full refund. This action cannot be undone.</p>
             <div className="field"><label htmlFor="ops-cancel-reason">Reason (optional)</label><textarea id="ops-cancel-reason" rows={3} value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} /></div>
@@ -359,7 +359,7 @@ export function OperationsPage() {
         <div className="ops-modal-backdrop" role="presentation">
           <section className="ops-modal ops-modal--wide" role="dialog" aria-modal="true" aria-labelledby="ops-chart-title">
             <button type="button" className="ops-modal-close" aria-label="Close" onClick={closeDialog}>×</button>
-            <p className="ops-eyebrow">PASSENGER CHART · TRAIN {dialog.run.train_no}</p>
+            <p className="ops-eyebrow">Passenger chart · Train {dialog.run.train_no}</p>
             <h2 id="ops-chart-title">{dialog.run.train_name}</h2>
             {mode === "live" && selectedChartQuery.isLoading && <p className="ops-state" role="status">Loading coach chart…</p>}
             {mode === "live" && chartError && <p className="ops-report-error" role="alert">{friendlyActionError(chartError)}</p>}

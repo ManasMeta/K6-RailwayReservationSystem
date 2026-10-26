@@ -8,7 +8,7 @@ Migrations: `db/migrations/0300_g3_inventory/` (Range 0300–0399)
 
 ## 1. Scope & Objective
 
-G3 owns the **segment-wise inventory** and **pricing engine** of Yatrio.
+G3 owns the **segment-wise inventory** and **pricing engine** of RailYatri.
 The primary technical breakthrough is solving the railway reservation problem where a seat is not locked for an entire train route, but dynamically sold across intermediate stop segments.
 
 ---
@@ -35,7 +35,7 @@ The primary technical breakthrough is solving the railway reservation problem wh
 ## 3. The Core Innovation: Segment-Wise Berths with GiST Exclusion
 
 In traditional basic reservation systems, one berth is sold once per train per date.
-In Yatrio (G3), a berth is sold for a range of stops $[boarding\_seq, alighting\_seq)$:
+In RailYatri (G3), a berth is sold for a range of stops $[boarding\_seq, alighting\_seq)$:
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS btree_gist;

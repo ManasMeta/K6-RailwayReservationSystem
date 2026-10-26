@@ -1,8 +1,8 @@
-# Yatrio
+# RailYatri
 
 **Railway reservation and management system.** Search trains between any two stations (including journeys with one change), pay from an in-app wallet, get an e-ticket with a QR code, and get refunds automatically when you cancel.
 
-Yatrio is a six-group college project in one monorepo. PostgreSQL 16 holds the schema and the business rules, FastAPI is a thin API on top, and React + Vite is the UI.
+RailYatri is a six-group college project in one monorepo. PostgreSQL 16 holds the schema and the business rules, FastAPI is a thin API on top, and React + Vite is the UI.
 
 | | |
 |---|---|
@@ -71,7 +71,7 @@ Passengers pay through the wallet (`POST /reservations/{pnr}/pay`), which confir
 
 ## Database Architecture & Complete ER Model
 
-Yatrio's database contains **32 tables and 2 materialized views in 3NF**, organized across 6 groups. Foreign keys strictly follow a monotonic hierarchy from higher-numbered groups to lower-numbered groups:
+RailYatri's database contains **32 tables and 2 materialized views in 3NF**, organized across 6 groups. Foreign keys strictly follow a monotonic hierarchy from higher-numbered groups to lower-numbered groups:
 $$\text{G1 (Accounts)} \leftarrow \text{G2 (Network)} \leftarrow \text{G3 (Inventory)} \leftarrow \text{G4 (Reservations)} \leftarrow \text{G5 (Wallet)} \leftarrow \text{G6 (Operations)}$$
 
 | Group | Module | Owned Tables & Views | Key Syllabus Concept |

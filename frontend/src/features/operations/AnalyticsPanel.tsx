@@ -35,7 +35,8 @@ interface AnalyticsPanelProps {
   demo: boolean;
 }
 
-const chartColors = ["#3d6ed4", "#e28b3b", "#39a176", "#8a6cc7", "#d25f57"];
+// Monochrome ramp from styles.css; it flips with dark mode.
+const chartColors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
 const EMPTY_REVENUE: RevenueByDayRow[] = [];
 const EMPTY_SEGMENTS: BusiestSegment[] = [];
 
@@ -147,11 +148,11 @@ export function AnalyticsPanel({ demo }: AnalyticsPanelProps) {
             <div className="ops-chart-area">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={revenue} margin={{ top: 12, right: 12, left: 4, bottom: 4 }}>
-                  <CartesianGrid stroke="#e9edf3" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: "#78869c" }} tickFormatter={(day: string) => day.slice(5)} />
-                  <YAxis tick={{ fontSize: 10, fill: "#78869c" }} tickFormatter={(value: number) => `₹${Math.round(value / 1000)}k`} width={48} />
-                  <Tooltip formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Net revenue"]} labelFormatter={(day) => `Date: ${day}`} />
-                  <Bar dataKey="net" fill="#3d6ed4" radius={[4, 4, 0, 0]} />
+                  <CartesianGrid stroke="var(--hairline)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 10, fill: "var(--muted)" }} tickFormatter={(day: string) => day.slice(5)} />
+                  <YAxis tick={{ fontSize: 10, fill: "var(--muted)" }} tickFormatter={(value: number) => `₹${Math.round(value / 1000)}k`} width={48} />
+                  <Tooltip cursor={{ fill: "var(--canvas-soft)" }} formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, "Net revenue"]} labelFormatter={(day) => `Date: ${day}`} />
+                  <Bar dataKey="net" maxBarSize={56} fill="var(--chart-1)" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -168,11 +169,11 @@ export function AnalyticsPanel({ demo }: AnalyticsPanelProps) {
             <div className="ops-chart-area">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={occupancyRows} margin={{ top: 12, right: 8, left: -18, bottom: 0 }}>
-                  <CartesianGrid stroke="#e9edf3" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="class_code" tick={{ fontSize: 10, fill: "#78869c" }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "#78869c" }} tickFormatter={(value: number) => `${value}%`} />
-                  <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, "Occupancy"]} />
-                  <Bar dataKey="occupancy_pct" radius={[4, 4, 0, 0]}>
+                  <CartesianGrid stroke="var(--hairline)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="class_code" tick={{ fontSize: 10, fill: "var(--muted)" }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: "var(--muted)" }} tickFormatter={(value: number) => `${value}%`} />
+                  <Tooltip cursor={{ fill: "var(--canvas-soft)" }} formatter={(value) => [`${Number(value).toFixed(1)}%`, "Occupancy"]} />
+                  <Bar dataKey="occupancy_pct" maxBarSize={56} radius={[8, 8, 0, 0]}>
                     {occupancyRows.map((row: OccupancyByClassRow, index) => (
                       <Cell key={row.class_code} fill={chartColors[index % chartColors.length]} />
                     ))}
@@ -216,11 +217,11 @@ export function AnalyticsPanel({ demo }: AnalyticsPanelProps) {
             <div className="ops-segment-chart">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={segments} layout="vertical" margin={{ top: 8, right: 16, left: 12, bottom: 4 }}>
-                  <CartesianGrid stroke="#e9edf3" strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 10, fill: "#78869c" }} />
-                  <YAxis type="category" dataKey="route" width={170} tick={{ fontSize: 10, fill: "#59677d" }} />
-                  <Tooltip formatter={(value) => [Number(value).toLocaleString(), "Passengers"]} />
-                  <Bar dataKey="passengers" fill="#e28b3b" radius={[0, 4, 4, 0]} />
+                  <CartesianGrid stroke="var(--hairline)" strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: "var(--muted)" }} />
+                  <YAxis type="category" dataKey="route" width={170} tick={{ fontSize: 10, fill: "var(--ink)" }} />
+                  <Tooltip cursor={{ fill: "var(--canvas-soft)" }} formatter={(value) => [Number(value).toLocaleString(), "Passengers"]} />
+                  <Bar dataKey="passengers" fill="var(--chart-1)" radius={[0, 8, 8, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   ArrowRight,
   CheckCircle2,
-  DollarSign,
   Info,
   Loader2,
   UserX,
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useCancelPassengers } from '../hooks/useReservations';
 import { CancellationResponse, Passenger, Reservation } from '../types';
+import { dangerButton, fieldLabel, iconButton, outlineButton, pillOnSoft, primaryButton } from './ui';
 
 interface CancelModalProps {
   reservation: Reservation;
@@ -85,191 +85,164 @@ export const CancelModal: React.FC<CancelModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700/70 rounded-2xl shadow-2xl p-6 overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--scrim)] backdrop-blur-sm animate-fade-in">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="cancel-title"
+        className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-canvas rounded-card shadow-overlay p-6 sm:p-8"
+      >
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-red-500/10 text-red-400 rounded-lg">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="inline-grid place-items-center w-11 h-11 rounded-squircle bg-danger-soft text-danger">
               <UserX className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-lg text-slate-100">Cancel Reservation</h3>
-              <p className="text-xs text-slate-400">PNR: <span className="font-mono font-medium text-slate-200">{reservation.pnr}</span></p>
-            </div>
+            </span>
+            <h3 id="cancel-title" className="mt-4 text-[32px] font-heading leading-[1.13]">Cancel passengers.</h3>
+            <p className="mt-1 text-sm text-muted">
+              PNR <span className="font-strong text-ink tabular-nums">{reservation.pnr}</span>
+            </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className={iconButton} aria-label="Close">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {cancellationResult ? (
-          /* Success Result State */
-          <div className="py-6 space-y-4">
-            <div className="flex flex-col items-center justify-center text-center space-y-2">
-              <div className="w-12 h-12 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7" />
-              </div>
-              <h4 className="text-base font-semibold text-slate-100">Cancellation Successful</h4>
-              <p className="text-xs text-slate-400 max-w-sm">
-                The berth has been freed and promoted waiting passengers. Your refund has been initiated to your wallet.
-              </p>
-            </div>
-
-            <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Cancelled Passengers:</span>
-                <span className="text-slate-200 font-medium">
-                  {cancellationResult.cancelled_passengers.length}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">Total Refund Credited:</span>
-                <span className="text-emerald-400 font-semibold font-mono text-sm">
-                  ₹{Number(cancellationResult.total_refund).toFixed(2)}
-                </span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-slate-400">New Booking Status:</span>
-                <span className="text-amber-400 font-semibold uppercase">
-                  {cancellationResult.reservation_status}
-                </span>
+          /* Success */
+          <div className="pt-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-6 h-6 flex-none" />
+              <div>
+                <h4 className="font-strong">Cancellation successful</h4>
+                <p className="text-sm text-muted">
+                  The berths were released and waiting passengers promoted. Your refund is on its way to your wallet.
+                </p>
               </div>
             </div>
 
-            <button
-              onClick={onClose}
-              className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium transition"
-            >
-              Close Window
+            <dl className="rounded-tile bg-canvas-soft px-5">
+              <div className="flex justify-between py-3 text-sm border-b border-hairline">
+                <dt className="text-muted">Cancelled passengers</dt>
+                <dd className="font-strong">{cancellationResult.cancelled_passengers.length}</dd>
+              </div>
+              <div className="flex justify-between py-3 text-sm border-b border-hairline">
+                <dt className="text-muted">Refund credited</dt>
+                <dd className="font-heading tabular-nums">+₹{Number(cancellationResult.total_refund).toFixed(2)}</dd>
+              </div>
+              <div className="flex justify-between py-3 text-sm">
+                <dt className="text-muted">Booking status</dt>
+                <dd className="font-strong">{cancellationResult.reservation_status}</dd>
+              </div>
+            </dl>
+
+            <button onClick={onClose} className={`${primaryButton} w-full`}>
+              Close
             </button>
           </div>
         ) : (
-          /* Selection & Cancellation Form */
-          <div className="py-4 space-y-4">
+          /* Selection form */
+          <div className="pt-6 space-y-5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                Select Passengers to Cancel
-              </span>
-              <button
-                type="button"
-                onClick={toggleSelectAll}
-                className="text-xs text-blue-400 hover:text-blue-300 font-medium"
-              >
+              <span className="text-sm font-strong">Choose passengers</span>
+              <button type="button" onClick={toggleSelectAll} className="text-sm font-strong underline underline-offset-4">
                 {selectedPassengerIds.length === activePassengers.length
-                  ? 'Deselect All'
-                  : 'Select All'}
+                  ? 'Deselect all'
+                  : 'Select all'}
               </button>
             </div>
 
-            {/* Passenger List */}
-            <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-56 overflow-y-auto">
               {activePassengers.map((p: Passenger) => {
                 const isSelected = selectedPassengerIds.includes(p.passenger_id!);
                 return (
-                  <div
+                  <label
                     key={p.passenger_id}
-                    onClick={() => togglePassenger(p.passenger_id!)}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition ${
-                      isSelected
-                        ? 'border-red-500/50 bg-red-950/20 text-slate-100'
-                        : 'border-slate-800 bg-slate-950/40 text-slate-300 hover:border-slate-700'
+                    className={`flex items-center justify-between gap-3 p-3 pl-4 rounded-tile cursor-pointer transition-colors ${
+                      isSelected ? 'bg-canvas-soft shadow-[inset_0_0_0_2px_var(--ink)]' : 'bg-canvas-soft hover:bg-hairline'
                     }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-3 min-w-0">
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => {}}
-                        className="w-4 h-4 rounded text-red-600 bg-slate-800 border-slate-700 focus:ring-red-500"
+                        onChange={() => togglePassenger(p.passenger_id!)}
                       />
-                      <div>
-                        <p className="text-sm font-medium text-slate-100">{p.passenger_name}</p>
-                        <p className="text-xs text-slate-400">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-strong truncate">{p.passenger_name}</span>
+                        <span className="block text-xs text-muted">
                           {p.age} yrs · {p.gender} · {p.berth_type || p.berth_preference || 'No pref'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
+                        </span>
+                      </span>
+                    </span>
+                    <span className="text-right flex-none">
+                      <span className={pillOnSoft}>
                         {p.current_status} {p.coach_code ? `${p.coach_code}-${p.berth_number}` : ''}
                       </span>
-                      <p className="text-xs font-mono text-slate-400 mt-1">₹{Number(p.fare || 0).toFixed(2)}</p>
-                    </div>
-                  </div>
+                      <span className="block text-xs text-muted mt-1 tabular-nums">₹{Number(p.fare || 0).toFixed(2)}</span>
+                    </span>
+                  </label>
                 );
               })}
             </div>
 
-            {/* Refund Estimation Panel */}
+            {/* Refund estimate */}
             {selectedPassengerIds.length > 0 && (
-              <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Selected Total Fare:</span>
-                  <span className="font-mono text-slate-200">₹{estimatedFare.toFixed(2)}</span>
+              <dl className="rounded-tile border border-hairline px-5 text-sm">
+                <div className="flex items-center justify-between py-3">
+                  <dt className="text-muted">Selected fare</dt>
+                  <dd className="tabular-nums">₹{estimatedFare.toFixed(2)}</dd>
                 </div>
-                <div className="flex items-center justify-between text-slate-400">
-                  <span>Est. Cancellation Surcharge:</span>
-                  <span className="font-mono text-red-400">-₹{estimatedCharge.toFixed(2)}</span>
+                <div className="flex items-center justify-between py-3 border-t border-hairline-soft">
+                  <dt className="text-muted">Est. cancellation charge</dt>
+                  <dd className="tabular-nums text-danger">−₹{estimatedCharge.toFixed(2)}</dd>
                 </div>
-                <div className="pt-1.5 border-t border-slate-800 flex items-center justify-between font-semibold text-slate-200">
-                  <span className="flex items-center gap-1 text-emerald-400">
-                    <DollarSign className="w-3.5 h-3.5" /> Estimated Refund:
-                  </span>
-                  <span className="font-mono text-emerald-400 text-sm">₹{estimatedRefund.toFixed(2)}</span>
+                <div className="flex items-center justify-between py-3 border-t border-hairline-soft">
+                  <dt className="font-strong">Estimated refund</dt>
+                  <dd className="font-heading text-base tabular-nums">₹{estimatedRefund.toFixed(2)}</dd>
                 </div>
-              </div>
+              </dl>
             )}
 
-            {/* Reason selector */}
             <div>
-              <label className="block text-xs font-medium text-slate-400 mb-1">
-                Reason for Cancellation
+              <label htmlFor="cancel-reason" className={fieldLabel}>
+                Reason for cancellation
               </label>
               <input
+                id="cancel-reason"
                 type="text"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="e.g. Change in itinerary, urgent work"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-blue-500"
               />
             </div>
 
-            {/* Warning Note */}
-            <div className="flex items-start gap-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-300 text-[11px]">
-              <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <p className="flex items-start gap-2 text-xs text-muted">
+              <Info className="w-4 h-4 flex-shrink-0" />
               <span>
-                Cancelling will permanently release allocated berths and promote RAC/WL passengers.
-                Refund will be credited to your in-app wallet immediately.
+                Cancelling releases the allocated berths and promotes RAC and waitlisted passengers.
+                The refund is credited to your wallet straight away.
               </span>
-            </div>
+            </p>
 
-            {/* Action buttons */}
-            <div className="flex items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 py-2.5 rounded-xl border border-slate-700 bg-slate-800/50 hover:bg-slate-800 text-slate-300 text-sm font-medium transition"
-              >
-                Keep Booking
+            <div className="flex items-center gap-2 pt-1">
+              <button type="button" onClick={onClose} className={`${outlineButton} flex-1`}>
+                Keep booking
               </button>
               <button
                 type="button"
                 disabled={selectedPassengerIds.length === 0 || cancelMutation.isPending}
                 onClick={handleConfirmCancel}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 text-white text-sm font-medium transition flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+                className={`${dangerButton} flex-1`}
               >
                 {cancelMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Processing...</span>
+                    <span>Processing…</span>
                   </>
                 ) : (
                   <>
-                    <span>Confirm Cancellation</span>
+                    <span>Confirm cancellation</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}

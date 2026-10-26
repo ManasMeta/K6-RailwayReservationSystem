@@ -26,7 +26,7 @@ def render_ticket_pdf(ticket: dict) -> bytes:
     pdf.rect(0, height - 28 * mm, width, 28 * mm, stroke=0, fill=1)
     pdf.setFillColorRGB(1, 1, 1)
     pdf.setFont("Helvetica-Bold", 20)
-    pdf.drawString(12 * mm, height - 14 * mm, "Yatrio E-Ticket")
+    pdf.drawString(12 * mm, height - 14 * mm, "RailYatri E-Ticket")
     pdf.setFont("Helvetica", 10)
     pdf.drawString(12 * mm, height - 21 * mm, "Railway reservation and management")
 
@@ -36,7 +36,7 @@ def render_ticket_pdf(ticket: dict) -> bytes:
         ("Ticket no.", ticket["ticket_number"]),
         ("Fare paid", f"INR {ticket['amount']}"),
         ("Issued", ticket["issued_at"].strftime("%d %b %Y, %H:%M")),
-        ("Payment", "Paid from Yatrio wallet"),
+        ("Payment", "Paid from RailYatri wallet"),
     ]
     y = height - 45 * mm
     for label, value in rows:

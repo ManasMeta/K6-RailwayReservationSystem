@@ -93,7 +93,7 @@ describe("navigation by role", () => {
 describe("protected routes", () => {
   it("sends a signed-out visitor from /operations to sign in", async () => {
     renderApp("/operations");
-    expect(await screen.findByRole("heading", { name: /sign in to yatrio/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /sign in to railyatri/i })).toBeInTheDocument();
   });
 
   it("tells a passenger the operations console is not for them", () => {

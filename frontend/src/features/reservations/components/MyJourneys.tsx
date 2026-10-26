@@ -15,6 +15,19 @@ import { useReservations } from '../hooks/useReservations';
 import { Reservation, ReservationStatus } from '../types';
 import { CancelModal } from './CancelModal';
 import { HoldCountdownTimer } from './HoldCountdownTimer';
+import {
+  dangerOutlineButton,
+  iconButton,
+  panel,
+  pillCancelled,
+  pillConfirmed,
+  pillNeutral,
+  pillPending,
+  pillRac,
+  pillWaitlist,
+  primaryButton,
+  softButton,
+} from './ui';
 
 interface MyJourneysProps {
   onNewBookingClick?: () => void;
@@ -62,302 +75,247 @@ export const MyJourneys: React.FC<MyJourneysProps> = ({ onNewBookingClick, onPay
   const getStatusBadge = (status: ReservationStatus) => {
     switch (status) {
       case 'CONFIRMED':
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-            CONFIRMED
-          </span>
-        );
+        return <span className={pillConfirmed}>Confirmed</span>;
       case 'PENDING_PAYMENT':
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse">
-            HOLD (PENDING PAYMENT)
-          </span>
-        );
+        return <span className={pillPending}>Held · pending payment</span>;
       case 'CANCELLED':
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-red-500/20 text-red-300 border border-red-500/30">
-            CANCELLED
-          </span>
-        );
+        return <span className={pillCancelled}>Cancelled</span>;
       case 'PARTIALLY_CANCELLED':
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-500/20 text-orange-300 border border-orange-500/30">
-            PARTIALLY CANCELLED
-          </span>
-        );
+        return <span className={pillRac}>Partially cancelled</span>;
       case 'EXPIRED':
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700">
-            EXPIRED
-          </span>
-        );
+        return <span className={pillWaitlist}>Expired</span>;
       default:
         return null;
     }
   };
 
+  const tabs = [
+    { key: 'ALL', label: 'All bookings' },
+    { key: 'ACTIVE', label: 'Upcoming' },
+    { key: 'CANCELLED', label: 'Cancelled' },
+  ] as const;
+
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 text-slate-100 animate-fade-in">
-      {/* Header & Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-800">
+    <div className="w-full max-w-5xl mx-auto space-y-6 text-ink animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2.5">
-            <Train className="w-6 h-6 text-indigo-400" />
-            <span>My Journeys & Bookings</span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Manage your booked railway reservations, monitor seat statuses, and process cancellations.
+          <h1 className="text-[40px] sm:text-[56px] font-heading leading-none">My journeys.</h1>
+          <p className="mt-3 text-xl font-light text-muted max-w-xl">
+            Track seat status, pay for held berths, and cancel passengers when plans change.
           </p>
         </div>
 
         {onNewBookingClick && (
-          <button
-            onClick={onNewBookingClick}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold transition shadow-lg shadow-indigo-500/20 flex items-center gap-2 self-start sm:self-auto"
-          >
-            <span>Book New Ticket</span>
+          <button onClick={onNewBookingClick} className={`${primaryButton} self-start sm:self-auto`}>
+            Book a new ticket
           </button>
         )}
       </div>
 
-      {/* Tabs & Search Filter Bar */}
+      {/* Segmented tabs and search */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
-          <button
-            onClick={() => setActiveTab('ALL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              activeTab === 'ALL'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            All Bookings
-          </button>
-          <button
-            onClick={() => setActiveTab('ACTIVE')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              activeTab === 'ACTIVE'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Active & Upcoming
-          </button>
-          <button
-            onClick={() => setActiveTab('CANCELLED')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              activeTab === 'CANCELLED'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            Cancelled
-          </button>
+        <div className="flex sm:inline-flex items-center gap-1 p-1 rounded-full bg-canvas-soft" role="group" aria-label="Filter bookings">
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              aria-pressed={activeTab === t.key}
+              className={`flex-1 sm:flex-none h-10 px-4 rounded-full text-sm font-strong transition-colors ${
+                activeTab === t.key ? 'bg-canvas text-ink shadow-segment' : 'text-muted hover:text-ink'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+        <div className="relative w-full sm:w-72">
+          <Search className="w-4 h-4 text-muted absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
-            type="text"
+            type="search"
+            aria-label="Search bookings"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by PNR or Train..."
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            placeholder="Search by PNR, train or station"
+            className="rounded-full pl-11"
           />
         </div>
       </div>
 
-      {/* Loading & Error States */}
+      {/* Loading & error states */}
       {isLoading && (
-        <div className="py-16 text-center text-slate-400 space-y-2">
-          <div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-xs">Fetching your journeys...</p>
+        <div className="py-16 text-center text-muted space-y-3" role="status">
+          <div className="w-8 h-8 border-2 border-ink border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm">Fetching your journeys…</p>
         </div>
       )}
 
       {error && (
-        <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/40 text-red-200 text-sm">
+        <div role="alert" className="p-4 pl-5 rounded-tile bg-danger-soft text-danger text-sm font-strong">
           Failed to load journeys. Please ensure backend services are online.
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Empty state */}
       {!isLoading && filteredItems.length === 0 && (
-        <div className="py-16 text-center border border-dashed border-slate-800 rounded-2xl bg-slate-900/30 p-8 space-y-3">
-          <div className="w-12 h-12 rounded-full bg-slate-800/80 text-slate-400 flex items-center justify-center mx-auto">
+        <div className="py-16 px-8 text-center rounded-card bg-canvas-soft space-y-3">
+          <div className="w-14 h-14 rounded-squircle bg-canvas flex items-center justify-center mx-auto">
             <Filter className="w-6 h-6" />
           </div>
-          <h3 className="text-base font-semibold text-slate-200">No Reservations Found</h3>
-          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+          <h3 className="text-xl font-heading">No reservations found.</h3>
+          <p className="text-sm text-muted max-w-sm mx-auto">
             {searchQuery
-              ? `No bookings matching "${searchQuery}". Try clearing search filters.`
-              : 'You do not have any active journeys in this view.'}
+              ? `No bookings match "${searchQuery}". Try clearing the search.`
+              : 'You do not have any journeys in this view.'}
           </p>
         </div>
       )}
 
-      {/* Journey Cards List */}
-      <div className="space-y-4">
+      {/* Journey cards */}
+      <div className="space-y-3">
         {filteredItems.map((res: Reservation) => {
           const hasActivePassengers = res.passengers.some(
             (p) => p.current_status !== 'CANCELLED'
           );
+          const canCancel = hasActivePassengers && res.status !== 'CANCELLED' && res.status !== 'EXPIRED';
+          const hasActions = canCancel || res.status === 'PENDING_PAYMENT' || res.status === 'CONFIRMED';
 
           return (
-            <div
-              key={res.reservation_id}
-              className="p-5 rounded-2xl bg-slate-900/80 border border-slate-800 hover:border-slate-700/80 transition-all shadow-xl space-y-4 relative overflow-hidden"
-            >
-              {/* Card Header: PNR + Status + Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800/70">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
-                    <span className="text-[11px] uppercase tracking-wider text-slate-400">PNR:</span>
-                    <span className="font-mono font-bold text-sm text-indigo-400">{res.pnr}</span>
+            <article key={res.reservation_id} className={`${panel} space-y-6`}>
+              {/* PNR, status and fare */}
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {getStatusBadge(res.status)}
+                    <span className={pillNeutral}>
+                      {res.class_code} · {res.quota_code}
+                    </span>
+                  </div>
+                  <h2 className="flex items-center gap-2 text-2xl font-heading leading-tight">
+                    <span>PNR <span className="tabular-nums">{res.pnr}</span></span>
                     <button
                       onClick={() => handleCopyPnr(res.pnr)}
-                      className="text-slate-500 hover:text-slate-300 transition"
+                      className={iconButton}
                       title="Copy PNR"
+                      aria-label={`Copy PNR ${res.pnr}`}
                     >
-                      {copiedPnr === res.pnr ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
+                      {copiedPnr === res.pnr ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     </button>
-                  </div>
-                  {getStatusBadge(res.status)}
+                  </h2>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-400">Total Fare:</span>
-                  <span className="font-mono font-bold text-base text-emerald-400">
+                <div className="text-right">
+                  <span className="text-sm text-muted">Total fare</span>
+                  <p className="text-[32px] font-heading leading-none tabular-nums">
                     ₹{Number(res.total_fare).toFixed(2)}
-                  </span>
+                  </p>
                 </div>
               </div>
 
-              {/* Hold Countdown if in PENDING_PAYMENT */}
               {res.status === 'PENDING_PAYMENT' && (
                 <HoldCountdownTimer expiresAt={res.hold_expires_at} onExpire={refetch} />
               )}
 
-              {/* Route & Train Info */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 py-1 text-xs">
-                <div>
-                  <span className="text-slate-400">Train Details:</span>
-                  <p className="font-semibold text-sm text-slate-100 flex items-center gap-1.5 mt-0.5">
-                    <Train className="w-4 h-4 text-indigo-400" />
-                    <span>{res.train_name ? `${res.train_no} · ${res.train_name}` : res.train_no}</span>
-                  </p>
+              {/* Route & train */}
+              <dl className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="p-4 rounded-tile bg-canvas-soft">
+                  <dt className="text-xs font-strong text-muted">Train</dt>
+                  <dd className="mt-1 font-strong flex items-center gap-2">
+                    <Train className="w-4 h-4 flex-none" />
+                    <span className="truncate">{res.train_name ? `${res.train_no} · ${res.train_name}` : res.train_no}</span>
+                  </dd>
                 </div>
-
-                <div>
-                  <span className="text-slate-400">Journey Route:</span>
-                  <p className="font-semibold text-sm text-slate-100 mt-0.5">
+                <div className="p-4 rounded-tile bg-canvas-soft">
+                  <dt className="text-xs font-strong text-muted">Route</dt>
+                  <dd className="mt-1 font-strong">
                     {res.from_station_code} → {res.to_station_code}
-                  </p>
+                  </dd>
                 </div>
-
-                <div>
-                  <span className="text-slate-400">Journey Date & Class:</span>
-                  <p className="font-semibold text-sm text-slate-100 flex items-center gap-1.5 mt-0.5">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <div className="p-4 rounded-tile bg-canvas-soft">
+                  <dt className="text-xs font-strong text-muted">Journey date</dt>
+                  <dd className="mt-1 font-strong flex items-center gap-2">
+                    <Calendar className="w-4 h-4" />
                     <span>{res.run_date}</span>
-                    <span className="text-slate-500">•</span>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-800 text-[11px] font-mono">
-                      {res.class_code} ({res.quota_code})
-                    </span>
-                  </p>
+                  </dd>
                 </div>
-              </div>
+              </dl>
 
-              {/* Passenger Berth Details List */}
-              <div className="pt-2">
-                <span className="text-[11px] uppercase tracking-wider font-semibold text-slate-400 flex items-center gap-1.5 mb-2">
-                  <Users className="w-3.5 h-3.5 text-indigo-400" />
+              {/* Passengers */}
+              <div>
+                <h3 className="flex items-center gap-2 mb-3 text-sm font-strong">
+                  <Users className="w-4 h-4" />
                   Passengers ({res.passengers.length})
-                </span>
+                </h3>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
                   {res.passengers.map((p, idx) => (
                     <div
                       key={idx}
-                      className={`p-2.5 rounded-xl border text-xs flex items-center justify-between ${
-                        p.current_status === 'CANCELLED'
-                          ? 'border-red-900/30 bg-red-950/10 opacity-60 text-slate-400'
-                          : 'border-slate-800 bg-slate-950/40 text-slate-200'
+                      className={`p-3 pl-4 rounded-tile border border-hairline flex items-center justify-between gap-3 ${
+                        p.current_status === 'CANCELLED' ? 'opacity-50' : ''
                       }`}
                     >
-                      <div>
-                        <p className="font-medium truncate max-w-[140px]">{p.passenger_name}</p>
-                        <p className="text-[10px] text-slate-400">
+                      <div className="min-w-0">
+                        <p className="font-strong text-sm truncate">{p.passenger_name}</p>
+                        <p className="text-xs text-muted">
                           {p.age}y · {p.gender}
                         </p>
                       </div>
 
-                      <div className="text-right">
-                        {p.current_status === 'CNF' ? (
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-mono font-semibold text-[11px]">
-                            {p.coach_code}-{p.berth_number} ({p.berth_type})
-                          </span>
-                        ) : p.current_status === 'RAC' ? (
-                          <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono font-semibold text-[11px]">
-                            RAC #{p.rac_number}
-                          </span>
-                        ) : p.current_status === 'WL' ? (
-                          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono font-semibold text-[11px]">
-                            WL #{p.wl_number}
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-[10px]">
-                            CANCELLED
-                          </span>
-                        )}
-                      </div>
+                      {p.current_status === 'CNF' ? (
+                        <span className={pillConfirmed}>
+                          {p.coach_code}-{p.berth_number} ({p.berth_type})
+                        </span>
+                      ) : p.current_status === 'RAC' ? (
+                        <span className={pillRac}>RAC #{p.rac_number}</span>
+                      ) : p.current_status === 'WL' ? (
+                        <span className={pillWaitlist}>WL #{p.wl_number}</span>
+                      ) : (
+                        <span className={pillCancelled}>Cancelled</span>
+                      )}
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Action Buttons: Cancel, Pay, Ticket */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800/70">
-                {res.status === 'PENDING_PAYMENT' && (
-                  <button
-                    onClick={() => onPayClick?.(res.pnr)}
-                    className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition flex items-center gap-1.5 shadow-md shadow-emerald-500/20"
-                  >
-                    <CreditCard className="w-3.5 h-3.5" />
-                    <span>Pay Now</span>
-                  </button>
-                )}
+              {/* Actions: pay, cancel, ticket */}
+              {hasActions && (
+                <div className="flex flex-wrap items-center justify-end gap-2 pt-5 border-t border-hairline-soft">
+                  {canCancel && (
+                    <button onClick={() => setSelectedForCancel(res)} className={dangerOutlineButton}>
+                      <UserX className="w-4 h-4" />
+                      <span>Cancel passengers</span>
+                    </button>
+                  )}
 
-                {hasActivePassengers && res.status !== 'CANCELLED' && res.status !== 'EXPIRED' && (
-                  <button
-                    onClick={() => setSelectedForCancel(res)}
-                    className="px-3 py-1.5 rounded-lg border border-red-500/30 hover:bg-red-500/10 text-red-300 text-xs font-medium transition flex items-center gap-1.5"
-                  >
-                    <UserX className="w-3.5 h-3.5" />
-                    <span>Cancel Passengers</span>
-                  </button>
-                )}
+                  {res.status === 'CONFIRMED' && (
+                    <button
+                      onClick={() => alert(`Downloading E-Ticket for PNR ${res.pnr}`)}
+                      className={softButton}
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>E-ticket</span>
+                    </button>
+                  )}
 
-                {res.status === 'CONFIRMED' && (
-                  <button
-                    onClick={() => alert(`Downloading E-Ticket for PNR ${res.pnr}`)}
-                    className="px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-medium transition flex items-center gap-1.5"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>E-Ticket</span>
-                  </button>
-                )}
-              </div>
-            </div>
+                  {res.status === 'PENDING_PAYMENT' && (
+                    <button
+                      onClick={() => onPayClick?.(res.pnr)}
+                      className={`${primaryButton} min-h-[40px] px-5 text-sm`}
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      <span>Pay now</span>
+                    </button>
+                  )}
+                </div>
+              )}
+            </article>
           );
         })}
       </div>
 
-      {/* Cancellation Modal Dialog */}
+      {/* Cancellation dialog */}
       {selectedForCancel && (
         <CancelModal
           reservation={selectedForCancel}

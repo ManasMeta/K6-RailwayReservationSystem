@@ -8,10 +8,7 @@ import {
   Copy,
   CreditCard,
   Plus,
-  Sparkles,
-  Train,
   Trash2,
-  UserCheck,
   Users,
 } from 'lucide-react';
 import { errorMessage } from '../../../api/client';
@@ -19,6 +16,21 @@ import { useCreateReservation, useSavedPassengers } from '../hooks/useReservatio
 import { BerthPreference, QuotaCode, Reservation, SavedPassenger } from '../types';
 import { HoldCountdownTimer } from './HoldCountdownTimer';
 import { TatkalCountdown } from './TatkalCountdown';
+import {
+  fieldLabel,
+  iconButton,
+  outlineButton,
+  panel,
+  pillConfirmed,
+  pillOnSoft,
+  pillPending,
+  pillRac,
+  pillWaitlist,
+  primaryButton,
+  sectionTitle,
+  softButton,
+  softPanel,
+} from './ui';
 
 interface PassengerRow {
   passenger_name: string;
@@ -190,43 +202,36 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6 animate-fade-in text-slate-100">
-      {/* Train & Journey Card Header */}
-      <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-500/30 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
-          <Train className="w-48 h-48" />
-        </div>
-
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold tracking-wide uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                Superfast Express
-              </span>
-              <span className="text-xs text-slate-400">Class: <strong className="text-slate-200">{classCode}</strong></span>
+    <div className="w-full max-w-4xl mx-auto space-y-3 animate-fade-in text-ink">
+      {/* Train & journey header */}
+      <div className={softPanel}>
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2 mb-5">
+              <span className={pillOnSoft}>Superfast express</span>
+              <span className={pillOnSoft}>Class {classCode}</span>
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-              <span>{trainNo}</span>
-              <span className="text-indigo-300">·</span>
-              <span>{trainName}</span>
-            </h2>
-            <div className="flex items-center gap-3 mt-2 text-sm text-slate-300">
-              <span className="font-semibold text-white">{fromStation}</span>
-              <ArrowRight className="w-4 h-4 text-indigo-400" />
-              <span className="font-semibold text-white">{toStation}</span>
-              <span className="text-slate-500">•</span>
-              <span className="text-slate-300">Date: {runDate}</span>
+            <h1 className="text-[32px] sm:text-[44px] font-heading leading-[1.05] text-ink">
+              <span className="text-muted">{trainNo}</span> <span>{trainName}</span>
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 mt-4 text-xl font-light text-muted">
+              <span className="font-heading text-ink">{fromStation}</span>
+              <ArrowRight className="w-5 h-5" aria-label="to" />
+              <span className="font-heading text-ink">{toStation}</span>
+              <span aria-hidden="true">·</span>
+              <span>{runDate}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-400">Class:</label>
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label htmlFor="booking-class" className={fieldLabel}>Class</label>
               <select
+                id="booking-class"
                 value={classCode}
                 onChange={(e) => setClassCode(e.target.value)}
                 disabled={Boolean(activeReservation)}
-                className="px-2.5 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 font-medium"
+                className="min-w-[12rem] bg-canvas"
               >
                 <option value="1A">1A (First AC)</option>
                 <option value="2A">2A (AC 2-Tier)</option>
@@ -238,242 +243,216 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
               </select>
             </div>
 
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-slate-400">Travel Date:</label>
+            <div>
+              <label htmlFor="booking-date" className={fieldLabel}>Travel date</label>
               <input
+                id="booking-date"
                 type="date"
                 value={runDate}
                 onChange={(e) => setRunDate(e.target.value)}
                 disabled={Boolean(activeReservation)}
-                className="px-3 py-1.5 rounded-lg bg-slate-950 border border-slate-700 text-sm text-slate-200 focus:outline-none focus:border-indigo-500"
+                className="bg-canvas"
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Quota Selection Tabs */}
+      {/* Quota selection */}
       {!activeReservation && (
-        <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400">
-            Select Reservation Quota
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className={`${panel} space-y-5`}>
+          <div>
+            <h2 className={sectionTitle}>Choose a quota.</h2>
+            <p className="mt-1 text-sm text-muted">Each quota has its own booking window and berths.</p>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
               { code: 'GN', label: 'General', desc: 'Standard 60-day reservation window' },
               { code: 'TQ', label: 'Tatkal', desc: 'Opens 1 day before departure' },
               { code: 'LD', label: 'Ladies', desc: 'Reserved for solo female travellers' },
-              { code: 'SS', label: 'Senior Citizen', desc: 'Lower berth quota for 60+ yrs' },
-            ].map((q) => (
-              <button
-                key={q.code}
-                type="button"
-                onClick={() => setQuotaCode(q.code as QuotaCode)}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  quotaCode === q.code
-                    ? 'border-indigo-500 bg-indigo-950/40 shadow-lg shadow-indigo-500/10'
-                    : 'border-slate-800 bg-slate-950/50 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-sm text-slate-100">{q.label}</span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
-                    {q.code}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 mt-1">{q.desc}</p>
-              </button>
-            ))}
+              { code: 'SS', label: 'Senior citizen', desc: 'Lower berth quota for 60+ yrs' },
+            ].map((q) => {
+              const selected = quotaCode === q.code;
+              return (
+                <button
+                  key={q.code}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setQuotaCode(q.code as QuotaCode)}
+                  className={`p-4 rounded-tile text-left transition-colors ${
+                    selected ? 'bg-primary text-on-primary' : 'bg-canvas-soft text-ink hover:bg-hairline'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-strong">{q.label}</span>
+                    <span className="px-2 h-5 inline-grid place-items-center rounded-full bg-canvas text-ink text-[11px] font-strong">
+                      {q.code}
+                    </span>
+                  </div>
+                  <p className={`text-xs mt-2 leading-snug ${selected ? 'opacity-70' : 'text-muted'}`}>{q.desc}</p>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Tatkal Countdown Banner if Tatkal Quota selected */}
           {quotaCode === 'TQ' && (
             <TatkalCountdown runDate={runDate} classCode={classCode} isAc={isAcClass} />
           )}
         </div>
       )}
 
-      {/* ACTIVE HOLD SCREEN (When Reservation is Created) */}
+      {/* Active hold, once the reservation is created */}
       {activeReservation ? (
-        <div className="p-6 rounded-2xl bg-slate-900/90 border border-indigo-500/40 shadow-2xl space-y-6">
-          <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-slate-800">
+        <div className={`${panel} space-y-6`}>
+          <div className="flex items-end justify-between flex-wrap gap-6">
             <div>
               <div className="flex items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                  {activeReservation.status}
+                <span className={activeReservation.status === 'PENDING_PAYMENT' ? pillPending : pillConfirmed}>
+                  {activeReservation.status === 'PENDING_PAYMENT' ? 'Held · awaiting payment' : activeReservation.status}
                 </span>
-                <span className="text-xs text-slate-400">Quota: {activeReservation.quota_code}</span>
+                <span className="text-sm text-muted">Quota {activeReservation.quota_code}</span>
               </div>
-              <h3 className="text-xl font-bold text-white mt-1 flex items-center gap-2">
-                <span>PNR:</span>
-                <span className="font-mono text-indigo-400">{activeReservation.pnr}</span>
+              <h2 className="mt-4 flex items-center gap-3 text-[32px] font-heading leading-[1.13]">
+                <span>PNR <span className="tabular-nums">{activeReservation.pnr}</span></span>
                 <button
+                  type="button"
                   onClick={() => handleCopyPnr(activeReservation.pnr)}
-                  className="p-1 hover:bg-slate-800 rounded text-slate-400 hover:text-slate-200 transition"
+                  className={iconButton}
                   title="Copy PNR"
+                  aria-label="Copy PNR"
                 >
-                  {isCopied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  {isCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 </button>
-              </h3>
+              </h2>
             </div>
 
             <div className="text-right">
-              <span className="text-xs text-slate-400">Total Payable Fare</span>
-              <p className="text-2xl font-mono font-bold text-emerald-400">
+              <span className="text-sm text-muted">Total payable</span>
+              <p className="text-[44px] font-heading leading-none tabular-nums text-accent">
                 ₹{Number(activeReservation.total_fare).toFixed(2)}
               </p>
             </div>
           </div>
 
-          {/* 10-Minute Hold Countdown */}
           {activeReservation.status === 'PENDING_PAYMENT' && (
             <HoldCountdownTimer expiresAt={activeReservation.hold_expires_at} />
           )}
 
-          {/* Confirmed / Allocated Passengers Table */}
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-              <Users className="w-4 h-4" /> Allocated Passengers & Berths
-            </h4>
-            <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40">
+            <h3 className="flex items-center gap-2 text-base font-strong">
+              <Users className="w-4 h-4" /> Passengers and berths
+            </h3>
+            <div className="space-y-2">
               {activeReservation.passengers.map((p, idx) => (
-                <div key={idx} className="p-4 flex items-center justify-between flex-wrap gap-3">
+                <div key={idx} className="p-4 pl-5 rounded-tile bg-canvas-soft flex items-center justify-between flex-wrap gap-3">
                   <div>
-                    <p className="font-semibold text-slate-100">{p.passenger_name}</p>
-                    <p className="text-xs text-slate-400">
-                      {p.age} yrs · {p.gender} {p.senior_citizen && '· Senior Citizen'}
+                    <p className="font-strong">{p.passenger_name}</p>
+                    <p className="text-sm text-muted">
+                      {p.age} yrs · {p.gender} {p.senior_citizen && '· Senior citizen'}
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-4">
                     {p.current_status === 'CNF' ? (
-                      <span className="px-3 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold flex items-center gap-1.5">
-                        <CheckCircle className="w-4 h-4 text-emerald-400" />
-                        CNF: Coach {p.coach_code || 'B1'}, Berth {p.berth_number} ({p.berth_type})
+                      <span className={pillConfirmed}>
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        CNF · {p.coach_code || 'B1'}-{p.berth_number} ({p.berth_type})
                       </span>
                     ) : p.current_status === 'RAC' ? (
-                      <span className="px-3 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold flex items-center gap-1.5">
-                        <Clock className="w-4 h-4 text-amber-400" />
-                        RAC #{p.rac_number} (Reserved Against Cancellation)
+                      <span className={pillRac}>
+                        <Clock className="w-3.5 h-3.5" />
+                        RAC #{p.rac_number}
                       </span>
                     ) : (
-                      <span className="px-3 py-1 rounded-lg bg-slate-800 text-slate-300 border border-slate-700 text-xs font-semibold">
-                        WL #{p.wl_number} (Waitlist)
-                      </span>
+                      <span className={pillWaitlist}>WL #{p.wl_number}</span>
                     )}
 
-                    <span className="font-mono text-sm text-slate-300">₹{Number(p.fare).toFixed(2)}</span>
+                    <span className="text-sm font-strong tabular-nums">₹{Number(p.fare).toFixed(2)}</span>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Payment Actions */}
           {activeReservation.status === 'PENDING_PAYMENT' ? (
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-              <button
-                type="button"
-                onClick={() => setActiveReservation(null)}
-                className="px-4 py-2.5 rounded-xl border border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-medium transition"
-              >
-                Book Another Ticket
+            <div className="flex items-center justify-end flex-wrap gap-2 pt-2">
+              <button type="button" onClick={() => setActiveReservation(null)} className={outlineButton}>
+                Book another ticket
               </button>
-              <button
-                type="button"
-                onClick={() => onPayClick?.(activeReservation.pnr)}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-medium text-sm transition shadow-lg shadow-emerald-500/20 flex items-center gap-2"
-              >
+              <button type="button" onClick={() => onPayClick?.(activeReservation.pnr)} className={primaryButton}>
                 <CreditCard className="w-4 h-4" />
-                <span>Pay from Yatrio Wallet (₹{Number(activeReservation.total_fare).toFixed(2)})</span>
+                <span>Pay ₹{Number(activeReservation.total_fare).toFixed(2)} from wallet</span>
               </button>
             </div>
           ) : (
-            <div className="p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex items-center justify-between text-emerald-200">
-              <div className="flex items-center gap-2 text-sm">
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
+            <div className="p-3 pl-5 rounded-full bg-canvas-soft flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-sm font-strong">
+                <CheckCircle className="w-5 h-5" />
                 <span>Payment confirmed. Your e-ticket is ready.</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setActiveReservation(null)}
-                className="text-xs px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 rounded-lg font-medium text-emerald-300 transition"
-              >
+              <button type="button" onClick={() => setActiveReservation(null)} className={`${softButton} bg-canvas`}>
                 Done
               </button>
             </div>
           )}
         </div>
       ) : (
-        /* PASSENGER DETAILS FORM & SAVED PASSENGERS */
-        <form onSubmit={handleCreateHold} className="space-y-6">
-          {/* Quick-Pick Saved Passengers (G1 Contract) */}
+        /* Passenger details form and saved passengers */
+        <form onSubmit={handleCreateHold} className="space-y-3">
           {savedPassengers && savedPassengers.length > 0 && (
-            <div className="p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-3">
+            <div className={`${panel} space-y-4`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                  <UserCheck className="w-4 h-4 text-indigo-400" />
-                  Quick-Add Saved Passengers
-                </span>
-                <span className="text-xs text-slate-500">{savedPassengers.length} saved</span>
+                <h2 className="text-base font-strong">Saved passengers</h2>
+                <span className="text-sm text-muted">{savedPassengers.length} saved</span>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
                 {savedPassengers.map((sp) => (
                   <button
                     key={sp.passenger_id}
                     type="button"
                     onClick={() => addSavedPassenger(sp)}
                     disabled={passengers.some((p) => p.passenger_name === sp.full_name)}
-                    className="p-2.5 rounded-xl border border-slate-800 bg-slate-950/40 hover:border-indigo-500/50 hover:bg-slate-900 text-left transition disabled:opacity-40 disabled:hover:border-slate-800 group"
+                    className="p-3 pl-4 rounded-tile bg-canvas-soft hover:bg-hairline text-left transition-colors disabled:opacity-40 disabled:hover:bg-canvas-soft flex items-center justify-between gap-3"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-xs text-slate-200 truncate group-hover:text-indigo-300">
-                        {sp.full_name}
+                    <span className="min-w-0">
+                      <span className="block font-strong text-sm truncate">{sp.full_name}</span>
+                      <span className="block text-xs text-muted mt-0.5">
+                        {sp.age} yrs · {sp.gender} {sp.berth_preference && `· ${sp.berth_preference}`}
                       </span>
-                      <Plus className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-400" />
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
-                      {sp.age} yrs · {sp.gender} {sp.berth_preference && `· ${sp.berth_preference}`}
-                    </p>
+                    </span>
+                    <span className="inline-grid place-items-center w-7 h-7 flex-none rounded-full bg-canvas">
+                      <Plus className="w-3.5 h-3.5" />
+                    </span>
                   </button>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Passenger Input List */}
-          <div className="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-base text-slate-100 flex items-center gap-2">
-                <Users className="w-5 h-5 text-indigo-400" /> Passenger Details (Max 6)
-              </h3>
-              <button
-                type="button"
-                onClick={addPassenger}
-                disabled={passengers.length >= 6}
-                className="px-3 py-1.5 rounded-lg border border-indigo-500/30 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 text-xs font-medium transition flex items-center gap-1.5 disabled:opacity-40"
-              >
-                <Plus className="w-4 h-4" /> Add Passenger
+          <div className={`${panel} space-y-5`}>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className={sectionTitle}>Who’s travelling.</h2>
+                <p className="mt-1 text-sm text-muted">Up to 6 passengers per booking.</p>
+              </div>
+              <button type="button" onClick={addPassenger} disabled={passengers.length >= 6} className={softButton}>
+                <Plus className="w-4 h-4" /> Add passenger
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2">
               {passengers.map((p, index) => (
-                <div
-                  key={index}
-                  className="p-4 rounded-xl border border-slate-800 bg-slate-950/50 space-y-3 transition hover:border-slate-700"
-                >
+                <div key={index} className="p-5 rounded-tile bg-canvas-soft space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-indigo-400">
-                      Passenger #{index + 1}
-                    </span>
+                    <span className="text-sm font-strong">Passenger {index + 1}</span>
                     {passengers.length > 1 && (
                       <button
                         type="button"
                         onClick={() => removePassenger(index)}
-                        className="text-slate-400 hover:text-red-400 transition"
+                        className={`${iconButton} bg-canvas hover:text-danger`}
                         title="Remove passenger"
+                        aria-label={`Remove passenger ${index + 1}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -482,10 +461,11 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                        Full Name (as per Govt ID)
+                      <label htmlFor={`passenger-name-${index}`} className={fieldLabel}>
+                        Full name (as on government ID)
                       </label>
                       <input
+                        id={`passenger-name-${index}`}
                         type="text"
                         required
                         value={p.passenger_name}
@@ -493,15 +473,14 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
                           handlePassengerChange(index, 'passenger_name', e.target.value)
                         }
                         placeholder="e.g. Aarav Sharma"
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                        className="bg-canvas"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                        Age
-                      </label>
+                      <label htmlFor={`passenger-age-${index}`} className={fieldLabel}>Age</label>
                       <input
+                        id={`passenger-age-${index}`}
                         type="number"
                         min="1"
                         max="125"
@@ -509,18 +488,17 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
                         value={p.age}
                         onChange={(e) => handlePassengerChange(index, 'age', e.target.value)}
                         placeholder="e.g. 29"
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                        className="bg-canvas"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                        Gender
-                      </label>
+                      <label htmlFor={`passenger-gender-${index}`} className={fieldLabel}>Gender</label>
                       <select
+                        id={`passenger-gender-${index}`}
                         value={p.gender}
                         onChange={(e) => handlePassengerChange(index, 'gender', e.target.value)}
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                        className="bg-canvas"
                       >
                         <option value="Male">Male</option>
                         <option value="Female">Female</option>
@@ -529,17 +507,16 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                        Berth Preference
-                      </label>
+                      <label htmlFor={`passenger-berth-${index}`} className={fieldLabel}>Berth preference</label>
                       <select
+                        id={`passenger-berth-${index}`}
                         value={p.berth_preference}
                         onChange={(e) =>
                           handlePassengerChange(index, 'berth_preference', e.target.value)
                         }
-                        className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-100 focus:outline-none focus:border-indigo-500"
+                        className="bg-canvas"
                       >
                         <option value="LB">Lower Berth (LB)</option>
                         <option value="MB">Middle Berth (MB)</option>
@@ -550,7 +527,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
                       </select>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-6">
+                    <div className="flex items-center gap-3 sm:pt-7">
                       <input
                         type="checkbox"
                         id={`senior-${index}`}
@@ -558,10 +535,9 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
                         onChange={(e) =>
                           handlePassengerChange(index, 'senior_citizen', e.target.checked)
                         }
-                        className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 focus:ring-indigo-500"
                       />
-                      <label htmlFor={`senior-${index}`} className="text-xs text-slate-300">
-                        Senior Citizen concession (60+ yrs)
+                      <label htmlFor={`senior-${index}`} className="text-sm">
+                        Senior citizen concession (60+ yrs)
                       </label>
                     </div>
                   </div>
@@ -570,33 +546,26 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
             </div>
           </div>
 
-          {/* Error Banner */}
           {errorMsg && (
-            <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/40 flex items-center gap-3 text-red-200">
-              <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-              <span className="text-sm">{errorMsg}</span>
+            <div role="alert" className="p-4 pl-5 rounded-tile bg-danger-soft text-danger flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm font-strong">{errorMsg}</span>
             </div>
           )}
 
-          {/* Submit Hold Action */}
-          <div className="flex items-center justify-between p-5 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-xl">
+          <div className={`${softPanel} flex items-center justify-between flex-wrap gap-4`}>
             <div>
-              <span className="text-xs text-slate-400">Total Passengers: {passengers.length}</span>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Seats will be held for 10 minutes upon proceeding.
+              <span className="font-strong">
+                {passengers.length} {passengers.length === 1 ? 'passenger' : 'passengers'}
+              </span>
+              <p className="text-sm text-muted mt-0.5">
+                Seats are held for 10 minutes once you continue.
               </p>
             </div>
 
-            <button
-              type="submit"
-              disabled={createReservationMutation.isPending}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-violet-600 hover:from-blue-500 hover:to-violet-500 text-white font-semibold text-sm transition shadow-lg shadow-indigo-500/25 flex items-center gap-2 disabled:opacity-50"
-            >
-              <Sparkles className="w-4 h-4" />
+            <button type="submit" disabled={createReservationMutation.isPending} className={primaryButton}>
               <span>
-                {createReservationMutation.isPending
-                  ? 'Allocating Berths...'
-                  : 'Proceed to Berth Hold'}
+                {createReservationMutation.isPending ? 'Allocating berths…' : 'Hold berths'}
               </span>
               <ArrowRight className="w-4 h-4" />
             </button>

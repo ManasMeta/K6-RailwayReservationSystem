@@ -57,28 +57,31 @@ export function JourneySearchPage() {
 
   return (
     <main className="page">
-      <h1>Find a train</h1>
-      <p className="lede">Direct trains and journeys with one change, between any two stations.</p>
+      <section className="hero" aria-labelledby="search-title">
+        <span className="hero-eyebrow">Direct trains and one-change journeys</span>
+        <h1 id="search-title">Find a train.</h1>
+        <p className="lede">Search between any two stations, compare seats and fares, and hold berths in a tap.</p>
 
-      <form className="search" onSubmit={onSubmit} noValidate>
-        <StationAutocomplete label="From" value={from} onChange={setFrom} />
-        <button type="button" className="swap" onClick={swap} aria-label="Swap stations">
-          ⇄
-        </button>
-        <StationAutocomplete label="To" value={to} onChange={setTo} />
-        <div className="field">
-          <label htmlFor="travel-date">Date</label>
-          <input
-            id="travel-date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
-        </div>
-        <button type="submit" className="primary" disabled={isFetching}>
-          {isFetching ? "Searching…" : "Search"}
-        </button>
-      </form>
+        <form className="search" onSubmit={onSubmit} noValidate>
+          <StationAutocomplete label="From" value={from} onChange={setFrom} />
+          <button type="button" className="swap" onClick={swap} aria-label="Swap stations">
+            ⇄
+          </button>
+          <StationAutocomplete label="To" value={to} onChange={setTo} />
+          <div className="field">
+            <label htmlFor="travel-date">Date</label>
+            <input
+              id="travel-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </div>
+          <button type="submit" className="primary" disabled={isFetching}>
+            {isFetching ? "Searching…" : "Search trains"}
+          </button>
+        </form>
+      </section>
 
       {formError && <p className="error" role="alert">{formError}</p>}
       {error && <p className="error" role="alert">{errorMessage(error)}</p>}
