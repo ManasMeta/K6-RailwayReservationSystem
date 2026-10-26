@@ -1,7 +1,7 @@
 -- STAND-INS for tables owned by other groups, used only to build and test G6
 -- (operations and analytics) on its own.
 --
--- Apply AFTER G2's migrations (0200_g2_network) and BEFORE db/migrations/0600_g6_operations.
+-- Apply AFTER G2 (0200_g2_network) and G3 (0300_g3_inventory), and BEFORE G5 (0500) and G6 (0600).
 -- Never apply this on a database that already has the real G1/G3/G4 objects.
 --
 -- Shapes follow the group ER diagram (Yatrio.pdf): keys are train_id / station_id,
@@ -11,7 +11,9 @@
 -- reservation_id, and cancellations without pnr / fare_amount / full_refund). G4 has to
 -- align to the diagram; until then G6 builds against the diagram, not against G4's branch.
 --
--- G2 (trains, stations) is real and is NOT created here.
+-- G2 (trains, stations) and G3 (travel_classes, quotas, coaches, berths, berth_allocations) are
+-- real and are NOT created here. Only G1 (users) and G4 (reservations, passengers,
+-- cancellations) are stood in for.
 
 CREATE EXTENSION IF NOT EXISTS btree_gist;
 
@@ -21,51 +23,6 @@ CREATE TABLE IF NOT EXISTS users (
     email TEXT UNIQUE NOT NULL,
     full_name TEXT NOT NULL DEFAULT 'Test User'
 );
-
--- ---------- G3 stand-ins ----------
-CREATE TABLE IF NOT EXISTS travel_classes (
-    class_code VARCHAR(5) PRIMARY KEY,
-    class_name TEXT NOT NULL,
-    base_multiplier NUMERIC(5,2) NOT NULL DEFAULT 1.00
-);
-INSERT INTO travel_classes (class_code, class_name) VALUES
-    ('1A', 'First AC'), ('2A', 'AC 2-Tier'), ('3A', 'AC 3-Tier'),
-    ('CC', 'AC Chair Car'), ('SL', 'Sleeper Class')
-ON CONFLICT (class_code) DO NOTHING;
-
-CREATE TABLE IF NOT EXISTS quotas (
-    quota_code VARCHAR(5) PRIMARY KEY,
-    quota_name TEXT NOT NULL
-);
-INSERT INTO quotas (quota_code, quota_name) VALUES
-    ('GN', 'General'), ('TQ', 'Tatkal'), ('LD', 'Ladies'), ('SS', 'Senior Citizen')
-ON CONFLICT (quota_code) DO NOTHING;
-
-CREATE TABLE IF NOT EXISTS coaches (
-    coach_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    train_id BIGINT NOT NULL REFERENCES trains(train_id) ON DELETE CASCADE,
-    coach_code VARCHAR(10) NOT NULL,
-    class_code VARCHAR(5) NOT NULL REFERENCES travel_classes(class_code),
-    total_berths INT NOT NULL DEFAULT 0,
-    UNIQUE (train_id, coach_code)
-);
-
-CREATE TABLE IF NOT EXISTS berths (
-    berth_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    coach_id BIGINT NOT NULL REFERENCES coaches(coach_id) ON DELETE CASCADE,
-    berth_number INT NOT NULL,
-    berth_type VARCHAR(10) NOT NULL,
-    UNIQUE (coach_id, berth_number)
-);
-
-CREATE TABLE IF NOT EXISTS berth_allocations (
-    allocation_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    berth_id BIGINT NOT NULL REFERENCES berths(berth_id) ON DELETE CASCADE,
-    run_date DATE NOT NULL,
-    stops INT4RANGE NOT NULL,
-    EXCLUDE USING gist (berth_id WITH =, run_date WITH =, stops WITH &&)
-);
--- passenger_id is added after reservation_passengers exists (G4's migration 0401 does this).
 
 -- ---------- G4 stand-ins (shape from the ER diagram) ----------
 CREATE SEQUENCE IF NOT EXISTS pnr_seq
@@ -105,9 +62,7 @@ CREATE TABLE IF NOT EXISTS reservation_passengers (
     fare NUMERIC(10,2) NOT NULL DEFAULT 0.00
 );
 
-ALTER TABLE berth_allocations
-    ADD COLUMN IF NOT EXISTS passenger_id BIGINT
-    REFERENCES reservation_passengers(passenger_id) ON DELETE SET NULL;
+-- berth_allocations.passenger_id already exists in G3's real table (no foreign key yet; G4 adds it).
 
 CREATE TABLE IF NOT EXISTS cancellations (
     cancellation_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

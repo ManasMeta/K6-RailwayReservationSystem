@@ -40,7 +40,24 @@ def test_list_runs_returns_rows(client):
 def test_list_runs_passes_the_date_filter_to_sql(client):
     client.get("/api/v1/ops/runs?run_date=2026-10-24")
     params = client.fake_conn.execute.call_args.args[1]
-    assert params == {"d": date(2026, 10, 24)}
+    assert params["d"] == date(2026, 10, 24)
+
+
+def test_list_runs_defaults_to_the_first_page_of_50(client):
+    client.get("/api/v1/ops/runs")
+    params = client.fake_conn.execute.call_args.args[1]
+    assert params == {"d": None, "limit": 50, "offset": 0}
+
+
+def test_list_runs_second_page_skips_the_first_page(client):
+    client.get("/api/v1/ops/runs?page=2&page_size=20")
+    params = client.fake_conn.execute.call_args.args[1]
+    assert params["limit"] == 20 and params["offset"] == 20
+
+
+@pytest.mark.parametrize("query", ["page=0", "page_size=0", "page_size=101", "page=abc"])
+def test_list_runs_rejects_bad_paging(client, query):
+    assert client.get(f"/api/v1/ops/runs?{query}").status_code == 422
 
 
 def test_list_runs_rejects_a_bad_date(client):
