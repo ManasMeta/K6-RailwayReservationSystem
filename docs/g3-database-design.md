@@ -74,7 +74,18 @@ CREATE TABLE berth_allocations (
 
 ---
 
-## 5. Tests
+## 5. Workbook loader
 
-* **SQL Tests**: [`db/tests/g3_inventory.sql`](file:///c:/Users/Lenovo%20Thinkpad%20T14/Desktop/dbm-k6-cie2/db/tests/g3_inventory.sql) (Verifies exclusion violation on overlap, adjacent non-overlapping ranges, `calculate_fare`, and `availability_grid`).
-* **Backend Unit Tests**: [`backend/tests/inventory/test_inventory_router.py`](file:///c:/Users/Lenovo%20Thinkpad%20T14/Desktop/dbm-k6-cie2/backend/tests/inventory/test_inventory_router.py) (All 6 tests passing).
+The migrations seed standard classes, quotas, concessions and fare slabs. `db/import/load_workbook.py` (openpyxl) loads the values from `Indian_Railway_Reservation_System.xlsx` on top of them: `travel_classes`, `quotas` and `concession_rules` from the `Lookup_Tables` sheet, `fare_slabs` from `Fare_Matrix`. Every row is an `INSERT ... ON CONFLICT DO UPDATE ... WHERE ... IS DISTINCT FROM`, so a rerun changes nothing, and a blank cell keeps the stored value.
+
+```bash
+python db/import/load_workbook.py Indian_Railway_Reservation_System.xlsx
+```
+
+The workbook is not in the repository, so the layout is an assumption: tables are found by their header text (for example "Class Code" + "Class Name", "Quota Code", "Concession Type" + "Discount %"), side by side or one under another. `Fare_Matrix` may be long (one row per class and distance band, with base fare and rate per km) or wide (a distance band per row and a rate-per-km column per class, each band's base fare continuing the previous band's fare, which is how `calculate_fare()` prices `base_fare + (distance - min_km) * per_km_rate`). Check the headers against the real file.
+
+## 6. Tests
+
+* **SQL Tests**: [`db/tests/g3_inventory.sql`](../db/tests/g3_inventory.sql) (Verifies exclusion violation on overlap, adjacent non-overlapping ranges, `calculate_fare`, and `availability_grid`).
+* **Backend Unit Tests**: [`backend/tests/inventory/test_inventory_router.py`](../backend/tests/inventory/test_inventory_router.py).
+* **Workbook loader**: [`backend/tests/inventory/test_workbook_loader.py`](../backend/tests/inventory/test_workbook_loader.py) (side-by-side and stacked tables, long and wide fare layouts, bad values rejected, a rerun changes nothing).

@@ -201,3 +201,19 @@ SELECT confirm_reservation(%s);
 SQL_RELEASE_EXPIRED_HOLDS = """
 SELECT release_expired_holds() AS released_count;
 """
+
+# Configurable booking window (0410). Row-level security lets only admins update it.
+SQL_GET_BOOKING_RULES = """
+SELECT advance_days, tatkal_ac_opens_at, tatkal_non_ac_opens_at, updated_at
+  FROM booking_rules
+ WHERE booking_rule_id = 1;
+"""
+
+SQL_UPDATE_BOOKING_RULES = """
+UPDATE booking_rules
+   SET advance_days = COALESCE(%s, advance_days),
+       tatkal_ac_opens_at = COALESCE(%s, tatkal_ac_opens_at),
+       tatkal_non_ac_opens_at = COALESCE(%s, tatkal_non_ac_opens_at)
+ WHERE booking_rule_id = 1
+RETURNING advance_days, tatkal_ac_opens_at, tatkal_non_ac_opens_at, updated_at;
+"""

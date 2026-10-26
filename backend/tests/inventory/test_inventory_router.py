@@ -140,3 +140,29 @@ def test_coach_layout_success(client):
     assert len(data["berths"]) == 2
     assert data["berths"][0]["is_available"] is True
     assert data["berths"][1]["is_available"] is False
+
+
+def test_availability_generates_inventory_for_new_train(client):
+    cursor = MagicMock()
+    cursor.fetchone.return_value = {"coaches_created": 12}
+    cursor.fetchall.return_value = []
+    conn = mock_connection_with_cursor(cursor)
+    app.dependency_overrides[get_db_connection] = lambda: conn
+
+    response = client.get("/api/v1/trains/12301/availability?from=HWH&to=CNB&date=2026-11-02")
+    assert response.status_code == 200
+    first_sql = cursor.execute.call_args_list[0].args[0]
+    assert "generate_train_consist_coaches" in first_sql
+    conn.commit.assert_called_once()
+
+
+def test_availability_skips_commit_when_inventory_exists(client):
+    cursor = MagicMock()
+    cursor.fetchone.side_effect = [None, {"train_id": 1, "from_seq": 1, "to_seq": 3}]
+    cursor.fetchall.return_value = []
+    conn = mock_connection_with_cursor(cursor)
+    app.dependency_overrides[get_db_connection] = lambda: conn
+
+    response = client.get("/api/v1/trains/12301/availability?from=HWH&to=CNB&date=2026-11-02")
+    assert response.status_code == 200
+    conn.commit.assert_not_called()

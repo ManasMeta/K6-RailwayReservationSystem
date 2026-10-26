@@ -12,7 +12,7 @@ import {
   Users,
 } from 'lucide-react';
 import { errorMessage } from '../../../api/client';
-import { useCreateReservation, useSavedPassengers } from '../hooks/useReservations';
+import { useBookingRules, useCreateReservation, useSavedPassengers } from '../hooks/useReservations';
 import { BerthPreference, QuotaCode, Reservation, SavedPassenger } from '../types';
 import { HoldCountdownTimer } from './HoldCountdownTimer';
 import { TatkalCountdown } from './TatkalCountdown';
@@ -87,6 +87,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 
   // Queries and Mutations
   const { data: savedPassengers } = useSavedPassengers();
+  // Only fetched once Tatkal is picked; without it the countdown uses the 10:00 / 11:00 defaults.
+  const { data: bookingRules } = useBookingRules(quotaCode === 'TQ');
   const createReservationMutation = useCreateReservation();
 
   const isAcClass = ['1A', '2A', '3A', '3E', 'CC', 'EC'].includes(classCode);
@@ -296,7 +298,12 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
           </div>
 
           {quotaCode === 'TQ' && (
-            <TatkalCountdown runDate={runDate} classCode={classCode} isAc={isAcClass} />
+            <TatkalCountdown
+              runDate={runDate}
+              classCode={classCode}
+              isAc={isAcClass}
+              opensAt={isAcClass ? bookingRules?.tatkal_ac_opens_at : bookingRules?.tatkal_non_ac_opens_at}
+            />
           )}
         </div>
       )}

@@ -133,7 +133,22 @@ def test_refunds_list(client, monkeypatch):
     page = {"items": [], "limit": 20, "offset": 0, "total": 0}
     monkeypatch.setattr(wallet_router, "get_refunds", lambda conn, user_id, limit, offset: page)
 
-    assert client.get("/api/v1/refunds").json() == page
+    assert client.get("/api/v1/refunds").json() == {**page, "page": 1, "page_size": 20}
+
+
+def test_refunds_list_takes_page_and_page_size(client, monkeypatch):
+    calls = []
+
+    def fake_refunds(conn, user_id, limit, offset):
+        calls.append((limit, offset))
+        return {"items": [], "limit": limit, "offset": offset, "total": 0}
+
+    monkeypatch.setattr(wallet_router, "get_refunds", fake_refunds)
+
+    body = client.get("/api/v1/refunds?page=2&page_size=5").json()
+
+    assert calls == [(5, 5)]
+    assert (body["page"], body["page_size"]) == (2, 5)
 
 
 def test_ticket_json_pdf_and_qr(client, monkeypatch):

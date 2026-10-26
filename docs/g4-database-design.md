@@ -43,6 +43,16 @@ Session B sells stops [1,3) of a berth and commits while session A is already ru
 
 Why it matters: a check-then-insert in Python would sell the berth twice under either level, because A's `SELECT` cannot see what B is about to do. The exclusion constraint is enforced on the index, outside the snapshot, so it refuses the double sale at both levels. The advisory lock then keeps the common case fast: bookings queue instead of failing with exclusion errors and retrying.
 
-## Not built
+## Configurable booking window (0410)
 
-The plan mentions a loader that turns the workbook's `PNR_Master` sheet into demo reservations. The workbook is not in the repository, so demo bookings come from `db/seeds/g6_demo_data.sql`, which books through the real functions.
+`booking_rules` holds one row: `advance_days` (60), `tatkal_ac_opens_at` (10:00) and `tatkal_non_ac_opens_at` (11:00), all IST. `is_booking_open()` reads it on every insert, so a change applies to the next booking without a deploy. Row-level security lets everyone read it and only an admin (or a background job) update it; there is no INSERT or DELETE policy, so the single row can never be added to or removed through the API. `GET /reservations/booking-rules` serves it to the Tatkal countdown, and `PUT /reservations/booking-rules` (admin) changes it. `db/tests/g4_booking_rules.sql` proves both the window and the policy.
+
+## Demo reservations from the workbook
+
+`db/import/load_pnr_master.py` turns the workbook's `PNR_Master` sheet into reservations through the real engine (`book_tickets()`, then `pay_reservation()` and `cancel_passenger()` with `--pay`), one savepoint per PNR, skipping PNRs already loaded:
+
+```bash
+python db/import/load_pnr_master.py Indian_Railway_Reservation_System.xlsx --user alice@yatrio.test --pay --rebase-dates
+```
+
+The workbook is not in the repository, so the sheet layout is an assumption (a header row naming the PNR, train, date, from, to and class columns; see the script's docstring). Check it against the real file. Trains or stations missing from the database are reported and skipped. `db/seeds/g6_demo_data.sql` remains the demo data that works with the CI sample timetable alone.

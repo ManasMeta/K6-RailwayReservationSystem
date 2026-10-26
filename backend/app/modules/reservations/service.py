@@ -9,6 +9,8 @@ from fastapi import HTTPException, status
 from app.core.database import db_session
 from app.modules.reservations import sql
 from app.modules.reservations.schemas import (
+    BookingRulesResponse,
+    BookingRulesUpdate,
     CancellationResponse,
     CancelledPassengerDetail,
     CancelPassengersRequest,
@@ -275,6 +277,31 @@ class ReservationService:
                 cur.execute(sql.SQL_RELEASE_EXPIRED_HOLDS)
                 row = cur.fetchone()
                 return int(row["released_count"]) if row else 0
+
+    @staticmethod
+    def get_booking_rules() -> BookingRulesResponse:
+        """Reads the booking window that is_booking_open() enforces."""
+        with db_session() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql.SQL_GET_BOOKING_RULES)
+                return BookingRulesResponse(**cur.fetchone())
+
+    @staticmethod
+    def update_booking_rules(payload: BookingRulesUpdate, user_id: int, role: str) -> BookingRulesResponse:
+        """Changes the booking window; row-level security refuses anyone but an admin."""
+        with db_session(user_id=user_id, role=role) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    sql.SQL_UPDATE_BOOKING_RULES,
+                    (payload.advance_days, payload.tatkal_ac_opens_at, payload.tatkal_non_ac_opens_at),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail={"detail": "Only an admin can change the booking rules", "code": "PERMISSION_DENIED"},
+                    )
+                return BookingRulesResponse(**row)
 
     @staticmethod
     def confirm_reservation(pnr: str, role: Optional[str] = None) -> bool:

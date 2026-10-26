@@ -42,6 +42,24 @@ UserId = Annotated[int, Depends(get_current_user_id)]
 Db = Annotated[Connection, Depends(get_db_connection)]
 
 
+Page = Annotated[int | None, Query(ge=1, description="Page number (with page_size)")]
+PageSize = Annotated[int | None, Query(ge=1, le=100, description="Items per page")]
+Limit = Annotated[int, Query(ge=1, le=100, description="Older clients: items per page")]
+Offset = Annotated[int, Query(ge=0, description="Older clients: items to skip")]
+
+
+def _window(page: int | None, page_size: int | None, limit: int, offset: int) -> tuple[int, int]:
+    """page/page_size (the API convention) win over the older limit/offset pair."""
+    if page is None and page_size is None:
+        return limit, offset
+    size = page_size or 20
+    return size, ((page or 1) - 1) * size
+
+
+def _with_page(result: dict, limit: int, offset: int) -> dict:
+    return {**result, "page": offset // limit + 1, "page_size": limit}
+
+
 class TopupRequest(BaseModel):
     amount: Decimal = Field(gt=Decimal(0), max_digits=10, decimal_places=2)
     # Prefer the Idempotency-Key header; the body field is kept for older clients.
@@ -101,12 +119,15 @@ def create_topup(
 def get_transactions(
     user_id: UserId,
     connection: Db,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: Page = None,
+    page_size: PageSize = None,
+    limit: Limit = 20,
+    offset: Offset = 0,
 ) -> dict:
+    limit, offset = _window(page, page_size, limit, offset)
     try:
-        return get_wallet_transactions(
-            connection, user_id, limit=limit, offset=offset
+        return _with_page(
+            get_wallet_transactions(connection, user_id, limit=limit, offset=offset), limit, offset
         )
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -171,11 +192,14 @@ def pay_from_wallet(
 def list_refunds(
     user_id: UserId,
     connection: Db,
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    page: Page = None,
+    page_size: PageSize = None,
+    limit: Limit = 20,
+    offset: Offset = 0,
 ) -> dict:
+    limit, offset = _window(page, page_size, limit, offset)
     try:
-        return get_refunds(connection, user_id, limit=limit, offset=offset)
+        return _with_page(get_refunds(connection, user_id, limit=limit, offset=offset), limit, offset)
     except psycopg.Error as exc:
         raise _unavailable(connection, exc) from exc
 

@@ -1,6 +1,6 @@
 """Pydantic schemas for the Reservation Engine module."""
 
-from datetime import date, datetime
+from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
 from typing import List, Optional
@@ -137,3 +137,18 @@ class ReservationListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+class BookingRulesResponse(BaseModel):
+    """The configurable booking window (booking_rules, migration 0410). Times are IST."""
+
+    advance_days: int
+    tatkal_ac_opens_at: time
+    tatkal_non_ac_opens_at: time
+    updated_at: datetime
+
+
+class BookingRulesUpdate(BaseModel):
+    advance_days: Optional[int] = Field(None, ge=1, le=365, description="Days ahead general booking opens")
+    tatkal_ac_opens_at: Optional[time] = Field(None, description="Tatkal opening time for AC classes (IST)")
+    tatkal_non_ac_opens_at: Optional[time] = Field(None, description="Tatkal opening time for non-AC classes (IST)")

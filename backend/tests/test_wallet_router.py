@@ -203,12 +203,34 @@ def test_transactions_default_pagination(client, monkeypatch):
     )
 
 
+def test_transactions_take_page_and_page_size(client, monkeypatch):
+    connection = MagicMock()
+    app.dependency_overrides[get_db_connection] = lambda: connection
+    service_mock = MagicMock(
+        return_value={"items": [], "limit": 10, "offset": 20, "total": 25}
+    )
+    monkeypatch.setattr(
+        wallet_router, "get_wallet_transactions", service_mock
+    )
+
+    response = client.get("/api/v1/wallet/transactions?page=3&page_size=10")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["page"], body["page_size"], body["offset"]) == (3, 10, 20)
+    service_mock.assert_called_once_with(
+        connection, 42, limit=10, offset=20
+    )
+
+
 @pytest.mark.parametrize(
     "query",
     [
         "?limit=0",
         "?limit=101",
         "?offset=-1",
+        "?page=0",
+        "?page_size=101",
     ],
 )
 def test_transactions_rejects_invalid_pagination(client, query):

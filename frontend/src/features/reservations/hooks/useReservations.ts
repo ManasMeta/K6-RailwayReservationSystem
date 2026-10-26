@@ -9,6 +9,7 @@ export const RESERVATION_KEYS = {
   details: () => [...RESERVATION_KEYS.all, 'detail'] as const,
   detail: (pnr: string) => [...RESERVATION_KEYS.details(), pnr] as const,
   savedPassengers: () => ['saved_passengers'] as const,
+  bookingRules: () => ['booking_rules'] as const,
 };
 
 export function useReservations(params?: {
@@ -79,5 +80,14 @@ export function useSavedPassengers() {
     queryKey: RESERVATION_KEYS.savedPassengers(),
     queryFn: () => reservationsApi.getSavedPassengers(),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useBookingRules(enabled: boolean = true) {
+  return useQuery({
+    queryKey: RESERVATION_KEYS.bookingRules(),
+    queryFn: () => reservationsApi.getBookingRules(),
+    enabled,
+    staleTime: 10 * 60 * 1000,
   });
 }

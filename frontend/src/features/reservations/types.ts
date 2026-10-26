@@ -103,3 +103,11 @@ export interface SavedPassenger {
   berth_preference?: string;
   senior_citizen: boolean;
 }
+
+/** The configurable booking window from GET /reservations/booking-rules (times are IST, HH:MM:SS). */
+export interface BookingRules {
+  advance_days: number;
+  tatkal_ac_opens_at: string;
+  tatkal_non_ac_opens_at: string;
+  updated_at: string;
+}

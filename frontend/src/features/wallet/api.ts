@@ -30,8 +30,13 @@ export async function topUp(amount: string, idempotencyKey: string): Promise<Top
   return data;
 }
 
+/** The API's list convention is page/page_size; the pages keep an offset, so convert here. */
+function pageParams(limit: number, offset: number) {
+  return { page: Math.floor(offset / limit) + 1, page_size: limit };
+}
+
 export async function getStatement(limit: number, offset: number): Promise<Page<StatementItem>> {
-  return (await api.get<Page<StatementItem>>("/wallet/transactions", { params: { limit, offset } }))
+  return (await api.get<Page<StatementItem>>("/wallet/transactions", { params: pageParams(limit, offset) }))
     .data;
 }
 
@@ -49,7 +54,7 @@ export async function payReservation(pnr: string, idempotencyKey: string): Promi
 }
 
 export async function getRefunds(limit: number, offset: number): Promise<Page<Refund>> {
-  return (await api.get<Page<Refund>>("/refunds", { params: { limit, offset } })).data;
+  return (await api.get<Page<Refund>>("/refunds", { params: pageParams(limit, offset) })).data;
 }
 
 export async function getTicket(pnr: string): Promise<TicketDetails> {

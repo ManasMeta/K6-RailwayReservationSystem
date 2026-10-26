@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.core.auth import UserPayload, get_current_user, require_role
 from app.modules.reservations.schemas import (
+    BookingRulesResponse,
+    BookingRulesUpdate,
     CancellationResponse,
     CancelPassengersRequest,
     ReservationCreate,
@@ -53,6 +55,33 @@ def list_reservations(
         page_size=page_size,
         status_filter=status,
     )
+
+
+# Declared before /{pnr} so "booking-rules" is never read as a PNR.
+@router.get(
+    "/booking-rules",
+    response_model=BookingRulesResponse,
+    summary="Booking window and Tatkal opening times",
+    description=(
+        "How many days ahead general booking opens and when Tatkal opens (IST, the day before "
+        "travel) for AC and non-AC classes. is_booking_open() enforces the same row."
+    ),
+)
+def get_booking_rules() -> BookingRulesResponse:
+    return ReservationService.get_booking_rules()
+
+
+@router.put(
+    "/booking-rules",
+    response_model=BookingRulesResponse,
+    summary="Change the booking window (admin)",
+    description="Fields left out keep their value. Row-level security on booking_rules refuses non-admins.",
+)
+def update_booking_rules(
+    payload: BookingRulesUpdate,
+    current_user: UserPayload = Depends(require_role(["admin"])),
+) -> BookingRulesResponse:
+    return ReservationService.update_booking_rules(payload, user_id=current_user.user_id, role=current_user.role)
 
 
 @router.get(

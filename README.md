@@ -43,13 +43,15 @@ Every module in the implementation plan is built, merged and tested together on 
 - Automated coach and berth generator from `train_consist` (Sleeper 72 berths, 3A 64 berths, 2A 48 berths); `python db/import/generate_inventory.py` runs it for every train.
 - `calculate_fare(...)` returns base fare, reservation fee, superfast charge, tatkal surcharge, concession discounts, and AC GST.
 - `availability_grid(...)` set-returning function generating 6-day date matrices cross-joined with active train classes.
+- `db/import/load_workbook.py` (openpyxl) fills classes, quotas, concessions and fare slabs from the workbook's `Lookup_Tables` and `Fare_Matrix` sheets; reruns change nothing.
 - UI: interactive availability matrix in search cards, fare breakup modal, and coach layout berth schematic.
 
 ### G4: reservation engine
 - Booking holds berths for ten minutes as `PENDING_PAYMENT`; `book_tickets()` gives each passenger a confirmed berth, then RAC, then a waiting-list number, catching `exclusion_violation` when two sales race. Twenty parallel requests for one berth sell it once.
-- Booking window (60 days) and Tatkal opening hours are enforced by a trigger; fares are worked out per passenger with the right concession.
+- Booking window (60 days) and Tatkal opening hours (10:00 AC, 11:00 non-AC) are enforced by a trigger and configurable in the `booking_rules` table, which only admins can change; fares are worked out per passenger with the right concession.
 - `cancel_passenger()` frees the range and promotes RAC to confirmed and the waiting list to RAC. Expired holds are released every minute by a background job.
 - UI: booking flow with hold timer and Tatkal countdown, My journeys, and cancel some or all passengers. The READ COMMITTED vs REPEATABLE READ demonstration is in the G4 doc.
+- `db/import/load_pnr_master.py` turns the workbook's `PNR_Master` sheet into demo reservations through `book_tickets()`.
 
 ### G5: wallet and ticketing
 - A **double-entry ledger**: every top-up, payment and refund is a balanced ledger transaction, checked by a deferred constraint trigger at commit.
@@ -504,6 +506,11 @@ python db/import/generate_inventory.py     # coaches and berths
 psql "$DATABASE_URL" -f db/seeds/g1_demo_users.sql   # optional demo accounts, see below
 psql "$DATABASE_URL" -f db/seeds/g6_demo_data.sql    # optional demo bookings, runs and charts
 
+# optional, with Indian_Railway_Reservation_System.xlsx (not in the repository)
+python db/import/load_zones.py WORKBOOK.xlsx         # zones from the Stations sheet (G2)
+python db/import/load_workbook.py WORKBOOK.xlsx      # classes, quotas, concessions, fare slabs (G3)
+python db/import/load_pnr_master.py WORKBOOK.xlsx --user alice@yatrio.test --pay   # demo PNRs (G4)
+
 uvicorn app.main:app --app-dir backend --reload      # API docs at http://localhost:8000/docs
 cd frontend && npm ci && npm run dev                 # http://localhost:5173
 ```
@@ -518,7 +525,7 @@ export DATABASE_URL=postgresql://nrrms_api:choose-one@localhost:5432/nrrms
 
 ## API
 
-Everything is under `/api/v1`; errors are `{"detail": "...", "code": "..."}`. Full contract at `/docs`.
+Everything is under `/api/v1`; errors are `{"detail": "...", "code": "..."}`; list endpoints take `page` and `page_size`. Full contract at `/docs`.
 
 | Endpoint | Group | Who | Purpose |
 |---|---|---|---|
@@ -532,6 +539,7 @@ Everything is under `/api/v1`; errors are `{"detail": "...", "code": "..."}`. Fu
 | `POST /reservations`, `GET /reservations`, `GET /reservations/{pnr}` | G4 | signed in | Hold berths, list, details |
 | `POST /reservations/{pnr}/cancel` | G4 | owner | Cancel passengers, promote RAC and WL |
 | `POST /reservations/{pnr}/confirm`, `/reservations/admin/release-expired-holds` | G4 | staff, admin | Overrides |
+| `GET /reservations/booking-rules`, `PUT /reservations/booking-rules` | G4 | anyone / admin | Booking window and Tatkal opening times |
 | `GET /wallet`, `POST /wallet/topups`, `GET /wallet/transactions` | G5 | signed in | Balance, simulated top-up, statement |
 | `GET /reservations/{pnr}/payment`, `POST /reservations/{pnr}/pay` | G5 | owner | Fare quote, pay from wallet |
 | `GET /refunds`, `GET /tickets/{pnr}`, `.pdf`, `/qr.png` | G5 | owner | Refunds, e-ticket |
@@ -546,7 +554,7 @@ db/
   migrations/      plain SQL in filename order, one folder per group
                    0000_platform/ 0100_g1_accounts/ 0200_g2_network/ 0300_g3_inventory/
                    0400_g4_reservations/ 0500_g5_wallet/ 0600_g6_operations/
-  import/          CSV loaders (G2) and the coach/berth generator (G3)
+  import/          CSV and workbook loaders (G2, G3, G4) and the coach/berth generator (G3)
   seeds/           demo accounts and demo bookings (local use only)
   tests/           SQL assertion scripts, one or more per group
   migrate.py       the migration runner; create_login_role.py makes the restricted API login

@@ -5,18 +5,32 @@ interface TatkalCountdownProps {
   runDate: string; // YYYY-MM-DD
   classCode: string;
   isAc?: boolean;
+  /** Opening time in IST, "HH:MM" or "HH:MM:SS", from GET /reservations/booking-rules. */
+  opensAt?: string;
   className?: string;
+}
+
+/** Hours and minutes of an "HH:MM[:SS]" time; the plan's defaults when it is missing or malformed. */
+export function parseOpeningTime(opensAt: string | undefined, isAc: boolean): { hour: number; minute: number } {
+  const match = /^(\d{1,2}):(\d{2})/.exec(opensAt ?? '');
+  if (match) {
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (hour <= 24 && minute < 60) return { hour, minute };
+  }
+  return { hour: isAc ? 10 : 11, minute: 0 };
 }
 
 export const TatkalCountdown: React.FC<TatkalCountdownProps> = ({
   runDate,
   classCode,
   isAc = false,
+  opensAt,
   className = '',
 }) => {
-  // Tatkal opens 1 day prior to travel
-  // 10:00 AM for AC classes, 11:00 AM for non-AC classes
-  const targetHour = isAc ? 10 : 11;
+  // Tatkal opens 1 day prior to travel, at the time booking_rules sets for AC or non-AC classes
+  const { hour: targetHour, minute: targetMinute } = parseOpeningTime(opensAt, isAc);
+  const openingLabel = `${String(targetHour).padStart(2, '0')}:${String(targetMinute).padStart(2, '0')}`;
 
   const [timeDiff, setTimeDiff] = useState<{
     isOpen: boolean;
@@ -24,16 +38,17 @@ export const TatkalCountdown: React.FC<TatkalCountdownProps> = ({
     minutes: number;
     seconds: number;
     openDateStr: string;
-  }>(() => calculateTimeDiff(runDate, targetHour));
+  }>(() => calculateTimeDiff(runDate, targetHour, targetMinute));
 
   useEffect(() => {
+    setTimeDiff(calculateTimeDiff(runDate, targetHour, targetMinute));
     const timer = setInterval(() => {
-      setTimeDiff(calculateTimeDiff(runDate, targetHour));
+      setTimeDiff(calculateTimeDiff(runDate, targetHour, targetMinute));
     }, 1000);
     return () => clearInterval(timer);
-  }, [runDate, targetHour]);
+  }, [runDate, targetHour, targetMinute]);
 
-  function calculateTimeDiff(dateStr: string, hour: number) {
+  function calculateTimeDiff(dateStr: string, hour: number, minute: number) {
     if (!dateStr) {
       return { isOpen: true, hours: 0, minutes: 0, seconds: 0, openDateStr: '' };
     }
@@ -42,7 +57,7 @@ export const TatkalCountdown: React.FC<TatkalCountdownProps> = ({
     // Day before travel
     const openDate = new Date(travelDate);
     openDate.setDate(openDate.getDate() - 1);
-    openDate.setHours(hour, 0, 0, 0);
+    openDate.setHours(hour, minute, 0, 0);
 
     const now = new Date();
     const diffMs = openDate.getTime() - now.getTime();
@@ -109,7 +124,7 @@ export const TatkalCountdown: React.FC<TatkalCountdownProps> = ({
             <p className="text-xs text-muted mt-1 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
               <span>
-                Opens {openDateStr} at {targetHour}:00 AM ({isAc ? 'AC class' : 'non-AC class'})
+                Opens {openDateStr} at {openingLabel} IST ({isAc ? 'AC class' : 'non-AC class'})
               </span>
             </p>
           </div>

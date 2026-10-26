@@ -26,6 +26,11 @@ The Reservation Engine is responsible for the transactional booking lifecycle in
 6. `0405_g4_cancel_passenger_func.sql`: `cancel_passenger()` function freeing segment allocations and promoting RAC $\to$ CNF and WL $\to$ RAC.
 7. `0406_g4_confirm_reservation_func.sql`: `confirm_reservation()` function called upon successful payment (G5 contract).
 8. `0407_g4_expire_holds_func.sql`: `release_expired_holds()` function freeing holds exceeding 10 minutes.
+9. `0408_g4_align_to_network_inventory.sql`: aligns the engine with the real G2/G3 schema (berths by `train_id`, fares from `calculate_fare()`, IST booking window).
+10. `0409_g4_tighten_rls_and_audit.sql`: policies that match nothing unless the caller is the owner or privileged; attaches `fn_audit()`.
+11. `0410_g4_booking_rules.sql`: the `booking_rules` table (advance days, Tatkal opening times for AC and non-AC) that `is_booking_open()` reads; only admins can update it.
+
+Demo data: `db/import/load_pnr_master.py` books the workbook's `PNR_Master` sheet through `book_tickets()` (see `docs/g4-database-design.md`).
 
 ---
 
@@ -51,11 +56,16 @@ When multiple passengers book the last available berth simultaneously:
   - Body: `passenger_ids`, `reason`
   - Response: Updated status, refund credited, and cancellation charge deducted.
 - `POST /api/v1/reservations/{pnr}/confirm`
-  - Marks hold as `CONFIRMED` upon payment capture.
+  - Staff/admin override that marks a hold `CONFIRMED`; passengers pay through `POST /reservations/{pnr}/pay` (G5).
+- `GET /api/v1/reservations/booking-rules`
+  - Public. `advance_days`, `tatkal_ac_opens_at`, `tatkal_non_ac_opens_at` (IST); the Tatkal countdown reads it.
+- `PUT /api/v1/reservations/booking-rules`
+  - Admin only. Fields left out keep their value; row-level security on `booking_rules` refuses anyone else.
 
 ---
 
 ## 6. Viva Checklist
 - [x] Run `python db/migrate.py check` to verify migration sequence.
 - [x] Run `test_0400_reservations.sql` in psql to demonstrate `book_tickets()`, `cancel_passenger()`, and trigger assertions.
+- [x] Run `g4_booking_rules.sql` to show the booking window following `booking_rules` and the admin-only policy.
 - [x] Run `pytest backend/tests/reservations/test_concurrency.py` to demonstrate 20 parallel threads contending for 1 berth.

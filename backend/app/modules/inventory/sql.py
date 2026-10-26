@@ -25,6 +25,15 @@ JOIN train_stops s_to ON s_to.train_id = t.train_id AND s_to.station_id = st_to.
 WHERE t.train_no = %(train_no)s;
 """
 
+# Coaches and berths are created the first time a train is looked at, so a full
+# timetable import does not need inventory for all ~11k trains up front.
+ENSURE_TRAIN_INVENTORY = """
+SELECT generate_train_consist_coaches(t.train_id) AS coaches_created
+FROM trains t
+WHERE t.train_no = %(train_no)s
+  AND NOT EXISTS (SELECT 1 FROM coaches c WHERE c.train_id = t.train_id);
+"""
+
 AVAILABILITY_GRID = """
 SELECT
     travel_date,

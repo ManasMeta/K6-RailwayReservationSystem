@@ -18,6 +18,15 @@ def get_quotas(connection: Connection) -> list[schemas.QuotaItem]:
         return [schemas.QuotaItem(**row) for row in cur.fetchall()]
 
 
+def ensure_train_inventory(connection: Connection, train_no: str) -> None:
+    """Generate coaches and berths for a train that has none yet, and commit them."""
+    with connection.cursor() as cur:
+        cur.execute(sql.ENSURE_TRAIN_INVENTORY, {"train_no": train_no})
+        generated = cur.fetchone()
+    if generated:
+        connection.commit()
+
+
 def get_availability(
     connection: Connection,
     train_no: str,
@@ -30,6 +39,7 @@ def get_availability(
     if from_code.upper() == to_code.upper():
         raise InventoryError(400, "Origin and destination stations cannot be identical", "SAME_STATION")
 
+    ensure_train_inventory(connection, train_no)
     with connection.cursor() as cur:
         cur.execute(
             sql.AVAILABILITY_GRID,
@@ -169,5 +179,7 @@ def get_train_coaches(connection: Connection, train_no: str) -> list[schemas.Coa
         if not train:
             raise InventoryError(404, f"Train {train_no} not found", "TRAIN_NOT_FOUND")
 
+    ensure_train_inventory(connection, train_no)
+    with connection.cursor() as cur:
         cur.execute(sql.GET_TRAIN_COACHES, {"train_id": train["train_id"]})
         return [schemas.CoachSummary(**c) for c in cur.fetchall()]

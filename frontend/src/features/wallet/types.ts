@@ -26,6 +26,8 @@ export interface StatementItem {
 
 export interface Page<T> {
   items: T[];
+  page?: number;
+  page_size?: number;
   limit: number;
   offset: number;
   total: number;

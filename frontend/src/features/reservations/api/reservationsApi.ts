@@ -1,5 +1,6 @@
 import { api as apiClient } from '../../../api/client';
 import {
+  BookingRules,
   CancelPassengersPayload,
   CancellationResponse,
   CreateReservationPayload,
@@ -48,6 +49,12 @@ export const reservationsApi = {
     const res = await apiClient.post<{ pnr: string; confirmed: boolean; status: string }>(
       `/reservations/${pnr}/confirm`
     );
+    return res.data;
+  },
+
+  // Booking window and Tatkal opening times, enforced by is_booking_open()
+  getBookingRules: async (): Promise<BookingRules> => {
+    const res = await apiClient.get<BookingRules>('/reservations/booking-rules');
     return res.data;
   },
 
