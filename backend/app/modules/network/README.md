@@ -1,5 +1,7 @@
 # G2: Rail network and journey planner
 
+**Group G2:** Shambhavi (32210), Sanskar (32213)
+
 Direct trains and one-change connections between any two of 8,151 stations on a date. Design notes, the import pipeline and the `EXPLAIN ANALYZE` comparison are in [docs/g2-database-design.md](../../../../docs/g2-database-design.md).
 
 ## Members and the SQL each one explains

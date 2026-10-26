@@ -1,5 +1,7 @@
 # G5 Wallet & Ticketing — database design
 
+Group: G5 — Aditya (32220), Mangesh (32206), Aditya (32208)
+
 ## Scope
 This schema covers only G5's wallet, financial ledger, top-ups, refunds, and e-ticket metadata. G1 owns identity/accounts; G4 owns reservations and cancellations.
 

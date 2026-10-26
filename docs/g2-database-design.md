@@ -1,6 +1,6 @@
 # G2 Rail Network & Journey Planner
 
-Group: G2 — Shambhavi, Sanskar  
+Group: G2 — Shambhavi (32210), Sanskar (32213)  
 Branch: `group/g2-network`  
 Migrations: `db/migrations/0200_g2_network/` (range 0200–0299). G2 depends on no other group's tables; only the `pg_trgm` extension, which `0201` creates with `IF NOT EXISTS` (G1's `0000_platform` may create it first).
 

@@ -1,5 +1,7 @@
 # Group 4: Reservation Engine (NRRMS)
 
+**Group G4:** Harshvardhan (32221), Aaryan (32219), Onkar (32207)
+
 ## 1. Overview & Core Mission
 The Reservation Engine is responsible for the transactional booking lifecycle in RailYatri NRRMS. It guarantees atomic seat allocation, prevents double-booking under extreme concurrency using PostgreSQL advisory locks and exclusion constraints, manages 10-minute payment holds, enforces Advance Reservation Period (ARP) & Tatkal window rules, and handles cancellations with cascading seat promotions (RAC $\to$ CNF and WL $\to$ RAC).
 

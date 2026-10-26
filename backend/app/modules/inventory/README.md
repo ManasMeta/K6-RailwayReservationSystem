@@ -1,5 +1,7 @@
 # G3: Inventory and fares
 
+**Group G3:** Manas (32212), Aditya (32205), Sujal (32211)
+
 Which berth is free between which two stops, and the price of any segment in any class and quota. Design notes are in [docs/g3-database-design.md](../../../../docs/g3-database-design.md).
 
 ## Members and the SQL each one explains

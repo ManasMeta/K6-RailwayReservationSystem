@@ -1,5 +1,7 @@
 # G4: Reservation engine
 
+Group: G4 — Harshvardhan (32221), Aaryan (32219), Onkar (32207)
+
 A reservation gives every passenger a confirmed berth, an RAC place or a waiting-list number, or changes nothing, even when twenty people book the last berth at once.
 
 ## Tables (migrations 0400-0409)

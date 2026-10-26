@@ -1,5 +1,7 @@
 # G6 Operations & Analytics — database design
 
+Group: G6 — Ketaki (32209), Pavitra (32216), Aarshia (32218)
+
 ## Scope
 G6 lets station staff run the railway (delays, cancelling a run, the final chart) and lets admins see how full and how profitable the trains are. This schema covers only G6's own tables, views, one function, one trigger and two materialized views. G1 owns users and roles, G2 the timetable, G3 coaches and berths, G4 reservations and cancellations, and G5 the wallet and refunds.
 

@@ -1,5 +1,7 @@
 # G6: Operations and analytics
 
+**Group G6:** Ketaki (32209), Pavitra (32216), Aarshia (32218)
+
 Staff run the railway (delays, cancellations, final charts) and admins see how full and how profitable each train is. Design notes are in [docs/g6-database-design.md](../../../../docs/g6-database-design.md) and [db/migrations/0600_g6_operations/README.md](../../../../db/migrations/0600_g6_operations/README.md).
 
 ## Members and the SQL each one explains

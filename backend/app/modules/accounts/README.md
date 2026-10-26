@@ -1,5 +1,7 @@
 # G1: Accounts and access
 
+**Group G1:** Sakshi (32217), Yashodhara (32214), Sanskruti (33215)
+
 Passengers, station staff and admins sign in with the right role, and PostgreSQL itself stops a passenger reading anyone else's rows. G1 also owns the shared `app/core` (config, connection, JWT, `require_role()`) and the platform migrations.
 
 ## Members and the SQL each one explains

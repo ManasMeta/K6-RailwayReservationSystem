@@ -1,5 +1,7 @@
 ﻿# G5: Wallet and ticketing
 
+**Group G5:** Aditya (32220), Mangesh (32206), Aditya (32208)
+
 Every rupee moves through a balanced ledger, a retried request never charges twice, and a paid PNR gets an e-ticket. Design notes are in [docs/g5-database-design.md](../../../../docs/g5-database-design.md); the endpoint table with error codes is in [backend/README.md](../../../README.md).
 
 ## Members and the SQL each one explains

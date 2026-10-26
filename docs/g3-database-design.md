@@ -1,6 +1,6 @@
 # G3 Inventory & Fares — Database Design and Architecture
 
-Group: **G3 — Inventory & Fares**  
+Group: **G3 — Inventory & Fares** · Manas (32212), Aditya (32205), Sujal (32211)  
 Branch: `g3Manas`  
 Migrations: `db/migrations/0300_g3_inventory/` (Range 0300–0399)  
 
