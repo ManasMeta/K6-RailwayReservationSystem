@@ -65,12 +65,13 @@ The `wallets.balance` field is a cached current balance for fast reads. Every ba
 
 ### Contract assumed from other groups
 
-Confirm these when G1 and G4 merge; column names live in `0513` and `0514` only.
+G1 and G4 are merged; `0518` points the refund trigger at G4's real keys. What G5 relies on:
 
 * G1: `users(user_id)`.
-* G4: `reservations(pnr TEXT, user_id, total_fare NUMERIC(10,2), status, departure_at)`; `confirm_reservation(pnr TEXT)` moves `PENDING_PAYMENT` to `CONFIRMED`; `cancellations(cancellation_id, pnr, fare_amount, cancelled_at, full_refund)` where `fare_amount` is the fare of the passengers cancelled and `full_refund` is true for a railway-cancelled run (G6).
+* G4: `reservations(reservation_id, pnr, user_id, total_fare, status, departure_at)`; `confirm_reservation(pnr)` moves `PENDING_PAYMENT` to `CONFIRMED`; `cancellations(cancellation_id, reservation_id, passenger_id, refund_amount, cancellation_charge, cancelled_at, full_refund)` and `reservation_passengers.fare`. `full_refund` is true for a railway-cancelled run (G6).
+* The refund trigger (`0518`) works out the refund with `refund_amount()` from the passenger's fare and hours to departure, credits the wallet, and writes the credited amount back to `cancellations.refund_amount` and `cancellation_charge`, so G4's API reports exactly what the wallet received.
+* Row-level security (`0519`): a user sees and changes only their own wallet. Staff, admins and jobs (`app_is_privileged()`) can reach every wallet, which a railway cancellation needs.
 
-`db/tests/support/g5_contract_stubs.sql` creates stand-ins for testing G5 alone. Do not apply it where the real G1/G4 tables exist.
 
 ### Tests
 

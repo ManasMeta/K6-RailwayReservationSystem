@@ -13,14 +13,23 @@ Yatrio is a six-group college project in one monorepo. PostgreSQL 16 holds the s
 
 ## What works today
 
+Every module in the implementation plan is built, merged and tested together on one database.
+
 | Group | Module | State | Docs |
 |---|---|---|---|
-| G1 | Accounts and access | **Sign-up, login, JWT and roles done**; row-level security and app roles still to do | |
+| G1 | Accounts and access | **Done** | [db/migrations/0100_g1_accounts](db/migrations/0100_g1_accounts) |
 | G2 | Rail network and journey planner | **Done** | [docs/g2-database-design.md](docs/g2-database-design.md) |
 | G3 | Inventory and fares | **Done** | [docs/g3-database-design.md](docs/g3-database-design.md) |
-| G4 | Reservation engine | **Merged and wired in**; not yet run against a live database | |
+| G4 | Reservation engine | **Done** | [docs/g4-database-design.md](docs/g4-database-design.md) |
 | G5 | Wallet and ticketing | **Done** | [docs/g5-database-design.md](docs/g5-database-design.md) |
 | G6 | Operations and analytics | **Done** | [docs/g6-database-design.md](docs/g6-database-design.md) |
+
+### G1: accounts and access
+- Sign-up, login (bcrypt + JWT), token refresh, profile, and up to ten saved co-travellers. Roles are `passenger`, `staff` and `admin`; sign-up only ever creates passengers.
+- **Row-level security**: the API connects as the `nrrms_app` role, and PostgreSQL itself hides other users' accounts, bookings, wallets and saved passengers (policy `user_id = app_user_id()`). Staff, admins and background jobs can see all rows; the `nrrms_report` role is read-only and cannot read password hashes.
+- `CREATE DOMAIN` types `mobile_no`, `pincode` and `email_addr` (citext) reused by every group.
+- `fn_audit()` trigger stores only the columns that changed, as JSONB, and never a password hash; users, reservations, wallets and train runs are audited.
+- UI: sign-up, login and profile pages, saved-passenger manager, and a menu that follows the signed-in role.
 
 ### G2: rail network and journey planner
 - Imports the master timetable (186,124 stop rows) through a staging table into `stations`, `trains`, `train_stops` and `train_running_days`; rerunning the import changes nothing.
@@ -31,10 +40,16 @@ Yatrio is a six-group college project in one monorepo. PostgreSQL 16 holds the s
 
 ### G3: inventory and fares
 - **Segment-wise berths**: a berth freed at an intermediate station is resold for the rest of the route, enforced at the database level by a PostgreSQL `btree_gist` exclusion constraint on `berth_allocations` (`stops INT4RANGE`).
-- Automated coach and berth generator from `train_consist` (Sleeper 72 berths, 3A 64 berths, 2A 48 berths).
+- Automated coach and berth generator from `train_consist` (Sleeper 72 berths, 3A 64 berths, 2A 48 berths); `python db/import/generate_inventory.py` runs it for every train.
 - `calculate_fare(...)` returns base fare, reservation fee, superfast charge, tatkal surcharge, concession discounts, and AC GST.
 - `availability_grid(...)` set-returning function generating 6-day date matrices cross-joined with active train classes.
 - UI: interactive availability matrix in search cards, fare breakup modal, and coach layout berth schematic.
+
+### G4: reservation engine
+- Booking holds berths for ten minutes as `PENDING_PAYMENT`; `book_tickets()` gives each passenger a confirmed berth, then RAC, then a waiting-list number, catching `exclusion_violation` when two sales race. Twenty parallel requests for one berth sell it once.
+- Booking window (60 days) and Tatkal opening hours are enforced by a trigger; fares are worked out per passenger with the right concession.
+- `cancel_passenger()` frees the range and promotes RAC to confirmed and the waiting list to RAC. Expired holds are released every minute by a background job.
+- UI: booking flow with hold timer and Tatkal countdown, My journeys, and cancel some or all passengers. The READ COMMITTED vs REPEATABLE READ demonstration is in the G4 doc.
 
 ### G5: wallet and ticketing
 - A **double-entry ledger**: every top-up, payment and refund is a balanced ledger transaction, checked by a deferred constraint trigger at commit.
@@ -43,11 +58,14 @@ Yatrio is a six-group college project in one monorepo. PostgreSQL 16 holds the s
 - Refunds by hours before departure (90% at 48h or more, 75% from 12h, 50% from 4h, none below; tiers live in the `refund_rules` table), capped at what was paid, and in full when the railway cancels a run.
 - Statement with a running balance, e-ticket page with QR code, and PDF download.
 
-### Still to come
-Row-level security on the G1 tables and the `nrrms_app` / `nrrms_report` database roles (G1), an end-to-end run of the booking flow against PostgreSQL (G4), and role checks on the staff and admin routes (G6).
+### G6: operations and analytics
+- Staff console: run board, delay entry, cancel a whole run (every passenger is cancelled with a full refund by one trigger), and the final chart via `prepare_chart()`, a PL/pgSQL cursor that gives freed berths to RAC then waiting-list passengers in booking order.
+- Public PNR status page (`v_pnr_status`, with passenger names masked).
+- Admin dashboard: occupancy, revenue by day and class (`GROUPING SETS`, refreshed with `REFRESH MATERIALIZED VIEW CONCURRENTLY`), waiting-list conversion and busiest segments.
+- Scheduled jobs prepare charts at the cut-off and refresh the views.
 
 ### Signing in
-`POST /auth/signup` creates a passenger account; staff and admin roles are assigned in the `user_roles` table. `POST /auth/login` returns a JWT that the frontend sends as `Authorization: Bearer ...`. Set `JWT_SECRET` in `.env`; there is no default, so the backend refuses to issue tokens without it. Wallet, payment, ticket, reservation and saved-passenger routes need a token and return `401` without one.
+`POST /auth/signup` creates a passenger account; staff and admin roles are granted in the `user_roles` table. `POST /auth/login` returns a JWT that the frontend sends as `Authorization: Bearer ...`. Set `JWT_SECRET` in `.env`; there is no default, so the backend refuses to issue tokens without it. Wallet, payment, ticket, reservation and saved-passenger routes need a token, `/ops/*` needs staff or admin, and `/reports/*` needs admin.
 
 Passengers pay through the wallet (`POST /reservations/{pnr}/pay`), which confirms the reservation in the database. `POST /reservations/{pnr}/confirm` is a staff and admin override.
 
@@ -458,85 +476,113 @@ erDiagram
 
 ## Run it locally
 
-You need Docker, Python 3.12, Node 20 or newer, and `psql` (or use `docker exec` as below).
+You need Docker, Python 3.12 and Node 20 or newer.
 
+### Everything in containers
 ```bash
-git clone https://github.com/ManasMeta/K6-RailwayReservationSystem.git
-cd K6-RailwayReservationSystem
-
-# 1. database
-docker compose up -d db
-export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nrrms
-
-# 2. G2 schema and the sample timetable
-for f in db/migrations/0200_g2_network/*.sql; do
-  docker exec -i nrrms-postgres psql -U postgres -d nrrms -v ON_ERROR_STOP=1 < "$f"
-done
-pip install -r backend/requirements.txt
-python db/import/load_sample.py
-
-# 3. G5 schema (stand-ins for the G1 and G4 tables, for a local trial only)
-docker exec -i nrrms-postgres psql -U postgres -d nrrms < db/tests/support/g5_contract_stubs.sql
-for f in db/migrations/0500_g5_wallet/*.sql; do
-  docker exec -i nrrms-postgres psql -U postgres -d nrrms -v ON_ERROR_STOP=1 < "$f"
-done
-
-# 4. backend and frontend
-uvicorn app.main:app --app-dir backend --reload     # API docs at http://localhost:8000/docs
-cd frontend && npm ci && npm run dev                 # app at http://localhost:5173
+cp .env.example .env     # then set JWT_SECRET, APP_DB_PASSWORD and POSTGRES_PASSWORD
+docker compose up --build
+```
+The `migrate` service applies every migration and creates the restricted `nrrms_api` login; the API (port 8000) connects as that login, so row-level security applies. The `worker` runs the background jobs, and the UI is on http://localhost:8080. To load the sample timetable into that database:
+```bash
+docker compose run --rm -e DATABASE_URL=postgresql://postgres:$POSTGRES_PASSWORD@db:5432/nrrms migrate \
+  sh -c "python db/import/load_sample.py && python db/import/generate_inventory.py"
 ```
 
-Load the real timetable with `python db/import/load_train_details.py Train_details_22122017.csv`.
+### For development
+```bash
+docker compose up -d db
+python -m venv backend/.venv
+backend/.venv/bin/pip install -r backend/requirements.txt    # Windows: backend\.venv\Scripts\pip
 
-Try the search at `http://localhost:5173/?from=HWH&to=LKO&date=2026-11-02` (the sample has one change at Kanpur).
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/nrrms
+export JWT_SECRET=any-long-random-string-for-local-use
+
+python db/migrate.py up                    # all groups, in order; a rerun changes nothing
+python db/import/load_sample.py            # 5 stations, 6 trains (or load_train_details.py CSV for the full file)
+python db/import/generate_inventory.py     # coaches and berths
+psql "$DATABASE_URL" -f db/seeds/g1_demo_users.sql   # optional demo accounts, see below
+psql "$DATABASE_URL" -f db/seeds/g6_demo_data.sql    # optional demo bookings, runs and charts
+
+uvicorn app.main:app --app-dir backend --reload      # API docs at http://localhost:8000/docs
+cd frontend && npm ci && npm run dev                 # http://localhost:5173
+```
+
+Demo accounts (password `yatrio-demo-1`, local use only): `alice@yatrio.test`, `bob@yatrio.test`, `carol@yatrio.test` (passengers), `staff@yatrio.test`, `admin@yatrio.test`.
+
+To run the API under row-level security as in production, create the restricted login and point `DATABASE_URL` at it:
+```bash
+APP_DB_USER=nrrms_api APP_DB_PASSWORD=choose-one python db/create_login_role.py
+export DATABASE_URL=postgresql://nrrms_api:choose-one@localhost:5432/nrrms
+```
 
 ## API
 
 Everything is under `/api/v1`; errors are `{"detail": "...", "code": "..."}`. Full contract at `/docs`.
 
-| Endpoint | Group | Purpose |
-|---|---|---|
-| `GET /stations?q=` | G2 | Station autocomplete |
-| `GET /journeys?from=&to=&date=` | G2 | Direct and one-change journeys |
-| `GET /trains/{no}/timetable` | G2 | Stops, days and running days |
-| `POST /auth/signup`, `/auth/login`, `/auth/refresh` | G1 | Create account, sign in, renew token |
-| `GET /me`, `PATCH /me` | G1 | Profile |
-| `GET /me/passengers`, `POST /me/passengers`, `DELETE /me/passengers/{id}` | G1 | Saved passengers (up to 10) |
-| `POST /reservations`, `GET /reservations`, `GET /reservations/{pnr}` | G4 | Hold berths, list, details |
-| `POST /reservations/{pnr}/cancel` | G4 | Cancel passengers, promote RAC and WL |
-| `GET /wallet`, `POST /wallet/topups` | G5 | Balance, simulated top-up |
-| `GET /wallet/transactions` | G5 | Statement with running balance |
-| `GET /reservations/{pnr}/payment`, `POST /reservations/{pnr}/pay` | G5 | Fare quote, pay from wallet |
-| `GET /refunds` | G5 | Refund history |
-| `GET /tickets/{pnr}`, `.pdf`, `/qr.png` | G5 | E-ticket details, PDF, QR image |
+| Endpoint | Group | Who | Purpose |
+|---|---|---|---|
+| `POST /auth/signup`, `/auth/login`, `/auth/refresh` | G1 | anyone / signed in | Create account, sign in, renew token |
+| `GET /me`, `PATCH /me` | G1 | signed in | Profile |
+| `GET /me/passengers`, `POST /me/passengers`, `DELETE /me/passengers/{id}` | G1 | signed in | Saved passengers (up to 10) |
+| `GET /stations?q=` | G2 | anyone | Station autocomplete |
+| `GET /journeys?from=&to=&date=` | G2 | anyone | Direct and one-change journeys |
+| `GET /trains/{no}/timetable` | G2 | anyone | Stops, days and running days |
+| `GET /trains/{no}/availability`, `/fare`, `/trains/{no}/coaches`, `/coaches/{id}/layout` | G3 | anyone | Availability grid, fare breakup, free berths |
+| `POST /reservations`, `GET /reservations`, `GET /reservations/{pnr}` | G4 | signed in | Hold berths, list, details |
+| `POST /reservations/{pnr}/cancel` | G4 | owner | Cancel passengers, promote RAC and WL |
+| `POST /reservations/{pnr}/confirm`, `/reservations/admin/release-expired-holds` | G4 | staff, admin | Overrides |
+| `GET /wallet`, `POST /wallet/topups`, `GET /wallet/transactions` | G5 | signed in | Balance, simulated top-up, statement |
+| `GET /reservations/{pnr}/payment`, `POST /reservations/{pnr}/pay` | G5 | owner | Fare quote, pay from wallet |
+| `GET /refunds`, `GET /tickets/{pnr}`, `.pdf`, `/qr.png` | G5 | owner | Refunds, e-ticket |
+| `GET /pnr/{pnr}` | G6 | anyone | Public PNR status (names masked) |
+| `GET /ops/runs`, `POST /ops/runs/{id}/delay`, `/cancel`, `/chart`, `GET /ops/runs/{id}/chart` | G6 | staff, admin | Run board, delays, cancel a run, final chart |
+| `GET /reports/revenue`, `/occupancy`, `/wl-conversion`, `/busiest-segments`, `POST /reports/refresh` | G6 | admin | Analytics |
 
 ## Repository layout
 
 ```
 db/
   migrations/      plain SQL in filename order, one folder per group
-                   0200_g2_network/  0500_g5_wallet/  (ranges reserved: G1 0100, G3 0300, G4 0400, G6 0600)
-  import/          CSV and workbook loaders
-  seeds/           small fixtures
-  tests/           SQL assertion scripts (support/ holds stand-ins for other groups' tables)
+                   0000_platform/ 0100_g1_accounts/ 0200_g2_network/ 0300_g3_inventory/
+                   0400_g4_reservations/ 0500_g5_wallet/ 0600_g6_operations/
+  import/          CSV loaders (G2) and the coach/berth generator (G3)
+  seeds/           demo accounts and demo bookings (local use only)
+  tests/           SQL assertion scripts, one or more per group
+  migrate.py       the migration runner; create_login_role.py makes the restricted API login
 backend/app/
-  core/            config, database connection, JWT auth and require_role()
-  modules/         accounts/ (G1), network/ (G2), reservations/ (G4), wallet/ (G5)
-backend/tests/     pytest
+  core/            config, database connection (sets the caller's id and role), JWT auth, require_role()
+  jobs/            hold expiry, chart preparation, view refresh
+  modules/         accounts/ network/ inventory/ reservations/ wallet/ operations/
+backend/tests/     pytest, one folder per module
 frontend/src/
-  features/        accounts/ (G1), network/ (G2), reservations/ (G4), wallet/ (G5): one folder per group
+  api/             axios client with the bearer-token interceptor
+  features/        accounts/ network/ inventory/ reservations/ wallet/ operations/
+scripts/           smoke_test.py: end-to-end check against a running API
 docs/              plan and per-group design notes
+.github/           CI, CD, CODEOWNERS, pull request template
 ```
 
 ## Tests
 
 ```bash
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/g2_network.sql         # after load_sample.py
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/g2_import_idempotent.sql
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/g5_wallet.sql
-cd backend && pytest tests -q                                                # integration tests skip if the database is not ready
+# database: migrate, import, then every SQL script
+for f in db/tests/*.sql; do psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f"; done
+
+# backend (needs the migrated database; integration tests skip if it is not reachable)
+cd backend && ruff check . && pytest tests -q
+
+# API end to end against a running server
+python scripts/smoke_test.py http://127.0.0.1:8000
+
+# frontend
 cd frontend && npm run lint && npm test && npm run build
 ```
+
+## CI/CD
+`.github/workflows/ci.yml` runs on every pull request to `main`, `develop` or `group/**`: migration numbering and ranges, all migrations on a fresh PostgreSQL 16 (and a rerun that must change nothing), the sample import, every SQL script, `ruff` and `pytest`, an API smoke test as the restricted `nrrms_app` role, frontend lint, tests and build, and both Docker builds.
+
+`.github/workflows/cd.yml` deploys after CI passes: a push to `develop` goes to staging and a push to `main` to production. Migrations run first, then the backend (Render deploy hook) and the frontend (Vercel). Secrets (`DATABASE_URL`, `APP_DB_PASSWORD`, `RENDER_DEPLOY_HOOK`, `VERCEL_TOKEN`) live in the GitHub Environments, never in the repository.
 
 ## Team
 

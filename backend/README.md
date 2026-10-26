@@ -18,7 +18,7 @@ Open `/docs` for the API contract. Errors from payment, refund and ticket routes
 | `GET /api/v1/refunds` | Refund history |
 | `GET /api/v1/tickets/{pnr}` · `.pdf` · `/qr.png` | E-ticket details, PDF (reportlab) and QR image (qrcode). Another user's PNR is `404 TICKET_NOT_FOUND` |
 
-Authentication comes from `get_current_user_id` (G1 sets `request.state.user_id`); until G1's JWT middleware is merged these routes return 401.
+Authentication: `get_current_user_id` reads the signed-in user from the bearer token (or from `request.state.user_id` when trusted middleware has set it); these routes return 401 without one.
 
 The ticket PDF shows the PNR, ticket number, fare paid, issue time and QR. Train and passenger details belong to G4 and can be added to `ticket_pdf.py` once its schema is final.
 
@@ -27,4 +27,4 @@ The ticket PDF shows the PNR, ticket number, fare paid, issue time and QR. Train
 ```bash
 cd backend && pytest tests -q
 ```
-Mocked router tests always run. The integration tests run against PostgreSQL 16 in the `g5_migration_check` schema (G5 migrations plus `db/tests/support/g5_contract_stubs.sql`) and are skipped when it is missing.
+Mocked router tests always run. The integration tests run against the migrated PostgreSQL database (`DATABASE_URL`) and are skipped when it is not reachable.

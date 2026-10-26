@@ -1,10 +1,15 @@
+# postgres:16 + backend + frontend, as in the implementation plan.
+#   docker compose up --build            everything (frontend on http://localhost:8080)
+#   docker compose up -d db              just the database, for local development
+# Copy .env.example to .env first and set JWT_SECRET and the passwords.
+
 services:
   db:
     image: postgres:16
     container_name: nrrms-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: nrrms
     ports:
       - "${POSTGRES_HOST_PORT:-5432}:5432"
@@ -15,6 +20,59 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  # One-shot: apply migrations as the admin role, then make the restricted login the API uses.
+  migrate:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    working_dir: /srv
+    command: >
+      sh -c "python db/migrate.py up && python db/create_login_role.py"
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/nrrms
+      APP_DB_USER: ${APP_DB_USER:-nrrms_api}
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:?set APP_DB_PASSWORD in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      # the restricted nrrms_app login, so row-level security applies to every request
+      DATABASE_URL: postgresql://${APP_DB_USER:-nrrms_api}:${APP_DB_PASSWORD}@db:5432/nrrms
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # Background jobs: release expired seat holds every minute, prepare charts and refresh
+  # the report views every 15 minutes.
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: >
+      sh -c "python -m app.jobs.hold_expiry & exec python -m app.jobs.run_operations --loop --every 15"
+    environment:
+      DATABASE_URL: postgresql://${APP_DB_USER:-nrrms_api}:${APP_DB_PASSWORD}@db:5432/nrrms
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      - backend
 
 volumes:
   nrrms_pgdata:

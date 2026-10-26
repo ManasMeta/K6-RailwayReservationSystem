@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { lazy, Suspense, useState } from "react";
 import { errorMessage } from "../../api/client";
+import { useSession } from "../accounts/session";
 import {
   apiErrorCode,
   cancelRun,
@@ -76,6 +77,9 @@ function ChartContents({ chart }: { chart: PreparedChartResponse }) {
 
 export function OperationsPage() {
   const queryClient = useQueryClient();
+  const session = useSession();
+  // Staff run the board; the admin reports are admin-only on the API, so hide the tab from staff.
+  const showAnalytics = session?.role !== "staff";
   const [mode, setMode] = useState<DataMode>("live");
   const [tab, setTab] = useState<DashboardTab>("runs");
   const [runDate, setRunDate] = useState("");
@@ -193,7 +197,9 @@ export function OperationsPage() {
         <p className="ops-nav-label">WORKSPACE</p>
         <nav className="ops-side-nav">
           <button type="button" className={tab === "runs" ? "ops-side-link ops-side-link--active" : "ops-side-link"} onClick={() => setTab("runs")}>▦ &nbsp; Staff console</button>
-          <button type="button" className={tab === "analytics" ? "ops-side-link ops-side-link--active" : "ops-side-link"} onClick={() => setTab("analytics")}>◩ &nbsp; Analytics</button>
+          {showAnalytics && (
+            <button type="button" className={tab === "analytics" ? "ops-side-link ops-side-link--active" : "ops-side-link"} onClick={() => setTab("analytics")}>◩ &nbsp; Analytics</button>
+          )}
         </nav>
         <div className="ops-sidebar-footer"><span className="ops-live-dot" aria-hidden="true" /> Operations workspace</div>
       </aside>

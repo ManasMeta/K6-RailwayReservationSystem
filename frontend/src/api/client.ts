@@ -2,6 +2,23 @@ import axios from "axios";
 
 const TOKEN_KEY = "nrrms_token";
 
+type Listener = () => void;
+const authListeners = new Set<Listener>();
+const notifyAuthChange = () => authListeners.forEach((listener) => listener());
+
+/** Call back when the token is set or cleared here or in another tab. Returns an unsubscribe. */
+export function subscribeAuth(listener: Listener): () => void {
+  authListeners.add(listener);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === TOKEN_KEY || event.key === null) listener();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    authListeners.delete(listener);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
 export function getToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY);
@@ -16,6 +33,7 @@ export function setToken(token: string): void {
   } catch {
     // storage unavailable: the session lasts until the page reloads
   }
+  notifyAuthChange();
 }
 
 export function clearToken(): void {
@@ -24,6 +42,7 @@ export function clearToken(): void {
   } catch {
     // nothing stored
   }
+  notifyAuthChange();
 }
 
 // Shared axios instance. G1 owns this file: the interceptor adds the bearer token

@@ -1,0 +1,59 @@
+# Each group reviews its own folders; shared folders are reviewed by G1 (the platform owner).
+# Replace the team handles with your GitHub teams or usernames once they exist.
+
+# Shared: platform, CI/CD, core backend, shared UI
+/.github/                                   @ManasMeta/g1-accounts
+/db/migrate.py                              @ManasMeta/g1-accounts
+/db/create_login_role.py                    @ManasMeta/g1-accounts
+/db/migrations/0000_platform/               @ManasMeta/g1-accounts
+/backend/app/core/                          @ManasMeta/g1-accounts
+/backend/app/jobs/                          @ManasMeta/g1-accounts
+/frontend/src/api/                          @ManasMeta/g1-accounts
+/frontend/src/components/                   @ManasMeta/g1-accounts
+/docker-compose.yml                         @ManasMeta/g1-accounts
+
+# G1 Accounts and access
+/db/migrations/0100_g1_accounts/            @ManasMeta/g1-accounts
+/db/seeds/g1_*                              @ManasMeta/g1-accounts
+/db/tests/g1_*                              @ManasMeta/g1-accounts
+/backend/app/modules/accounts/              @ManasMeta/g1-accounts
+/backend/tests/accounts/                    @ManasMeta/g1-accounts
+/frontend/src/features/accounts/            @ManasMeta/g1-accounts
+
+# G2 Rail network and journey planner
+/db/migrations/0200_g2_network/             @ManasMeta/g2-network
+/db/import/load_*                           @ManasMeta/g2-network
+/db/tests/g2_*                              @ManasMeta/g2-network
+/backend/app/modules/network/               @ManasMeta/g2-network
+/backend/tests/network/                     @ManasMeta/g2-network
+/frontend/src/features/network/             @ManasMeta/g2-network
+
+# G3 Inventory and fares
+/db/migrations/0300_g3_inventory/           @ManasMeta/g3-inventory
+/db/import/generate_inventory.py            @ManasMeta/g3-inventory
+/db/tests/g3_*                              @ManasMeta/g3-inventory
+/backend/app/modules/inventory/             @ManasMeta/g3-inventory
+/backend/tests/inventory/                   @ManasMeta/g3-inventory
+/frontend/src/features/inventory/           @ManasMeta/g3-inventory
+
+# G4 Reservation engine
+/db/migrations/0400_g4_reservations/        @ManasMeta/g4-reservations
+/db/tests/test_0400_*                       @ManasMeta/g4-reservations
+/backend/app/modules/reservations/          @ManasMeta/g4-reservations
+/backend/tests/reservations/                @ManasMeta/g4-reservations
+/frontend/src/features/reservations/        @ManasMeta/g4-reservations
+
+# G5 Wallet and ticketing
+/db/migrations/0500_g5_wallet/              @ManasMeta/g5-wallet
+/db/tests/g5_*                              @ManasMeta/g5-wallet
+/backend/app/modules/wallet/                @ManasMeta/g5-wallet
+/backend/tests/test_wallet_*                @ManasMeta/g5-wallet
+/frontend/src/features/wallet/              @ManasMeta/g5-wallet
+
+# G6 Operations and analytics
+/db/migrations/0600_g6_operations/          @ManasMeta/g6-operations
+/db/seeds/g6_*                              @ManasMeta/g6-operations
+/db/tests/g6_*                              @ManasMeta/g6-operations
+/backend/app/modules/operations/            @ManasMeta/g6-operations
+/backend/tests/operations/                  @ManasMeta/g6-operations
+/frontend/src/features/operations/          @ManasMeta/g6-operations

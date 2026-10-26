@@ -1,0 +1,94 @@
+# Deploys on pushes: develop -> staging, main -> production.
+# Migrations always run first, so the new backend never meets an older schema.
+#
+# Configure two GitHub Environments, "staging" and "production", each with:
+#   secrets:   DATABASE_URL        admin connection string (runs migrations, creates the app login)
+#              APP_DB_PASSWORD     password for the restricted nrrms_api login
+#              RENDER_DEPLOY_HOOK  deploy hook URL of the backend service
+#              VERCEL_TOKEN        token for the frontend project
+#   variables: VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# The backend service itself needs DATABASE_URL (the nrrms_api login, not the admin one) and
+# JWT_SECRET in the host's environment settings. Nothing secret lives in this repository.
+name: CD
+
+on:
+  push:
+    branches: [develop, main]
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    name: wait for CI on this commit
+    runs-on: ubuntu-latest
+    permissions:
+      checks: read
+    steps:
+      - uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          running-workflow-name: wait for CI on this commit
+          wait-interval: 20
+          check-regexp: '^(database|backend|backend-as-app-role|frontend|docker)'
+
+  migrate:
+    name: migrate the database
+    needs: checks
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r backend/requirements.txt
+      - run: python db/migrate.py check
+      - run: python db/migrate.py up
+      - name: Create or update the restricted login the API uses
+        env:
+          APP_DB_USER: nrrms_api
+          APP_DB_PASSWORD: ${{ secrets.APP_DB_PASSWORD }}
+        run: python db/create_login_role.py
+
+  backend:
+    name: deploy the backend
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    steps:
+      - name: Trigger the Render deploy hook
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          test -n "$HOOK" || { echo "RENDER_DEPLOY_HOOK is not set for this environment"; exit 1; }
+          curl --fail --silent --show-error -X POST "$HOOK"
+
+  frontend:
+    name: deploy the frontend
+    needs: migrate
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_TARGET: ${{ github.ref_name == 'main' && 'production' || 'preview' }}
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --global vercel@latest
+      - run: vercel pull --yes --environment=$VERCEL_TARGET --token=$VERCEL_TOKEN
+      - run: vercel build $([ "$VERCEL_TARGET" = production ] && echo --prod) --token=$VERCEL_TOKEN
+      - run: vercel deploy --prebuilt $([ "$VERCEL_TARGET" = production ] && echo --prod) --token=$VERCEL_TOKEN

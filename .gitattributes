@@ -1,0 +1,9 @@
+# Keep line endings stable across Windows and Linux: shell scripts and SQL must stay LF.
+* text=auto
+*.sh text eol=lf
+*.sql text eol=lf
+*.py text eol=lf
+Dockerfile text eol=lf
+*.pdf binary
+*.png binary
+*.csv text eol=lf

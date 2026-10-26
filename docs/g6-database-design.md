@@ -83,10 +83,10 @@ Staff and admin checks are not enforced yet: they wait for G1's `require_role()`
 * G4: `reservations`, `reservation_passengers` (`current_status` is `CNF`, `RAC`, `WL` or `CANCELLED`), `cancellations`, and `cancel_passenger(passenger_id, reason, full_refund DEFAULT false)`. **The third argument is G6's request:** with `true`, `cancellations.full_refund` is set and G5 refunds 100%.
 * G5: the trigger on `cancellations` creates the refund; `refunds(pnr, amount, status)` feeds `mv_revenue`.
 
-`db/tests/support/g6_contract_stubs.sql` stands in for G1 `users` and G4 until they are merged. Do not apply it where the real tables exist.
+All of these are real now. The view, trigger and `prepare_chart()` use G4's column names (`reservation_id`, `train_no`, `passenger_name`, `coach_code`, `berth_number`).
 
 ## Load order on a fresh database
-G2 migrations, G3 migrations, `g6_contract_stubs.sql` (only until G4 is real), G5 migrations, G6 migrations (`0600_g6_operations/*.sql`), then `python db/import/load_sample.py`, then `db/seeds/g6_seed.sql`, `db/seeds/g6_demo_data.sql`, `db/seeds/g6_demo_conversion.sql`. Seeds are for demos only.
+`python db/migrate.py up` (every group in order), `python db/import/load_sample.py`, `python db/import/generate_inventory.py`, then for a demo `db/seeds/g1_demo_users.sql` and `db/seeds/g6_demo_data.sql`. Seeds are for demos only; the SQL tests create their own data.
 
 ## Tests
 
@@ -108,8 +108,8 @@ Run the database tests with `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests
 ## Integration checklist
 - [x] SQL tests for the cancel trigger and `prepare_chart` (`db/tests/g6_operations.sql`, `db/tests/g6_prepare_chart.sql`).
 - [x] API tests for every G6 route and both jobs.
-- [ ] G4 confirms `cancel_passenger(passenger_id, reason, full_refund)` and real RAC/WL promotion, then drop `db/tests/support/g6_contract_stubs.sql`.
-- [ ] G1's `require_role()` is added to the `/ops` and `/reports` routers.
-- [ ] G1 reviews the new shared folder `backend/app/jobs/`.
-- [ ] Agree who runs `python -m app.jobs.run_operations` on the shared server.
+- [x] G4 provides `cancel_passenger(passenger_id, reason, full_refund)` with real RAC/WL promotion (`0408`); the stand-in is gone.
+- [x] `require_role()` guards the routers: `/ops` needs staff or admin, `/reports` needs admin.
+- [x] `refresh_mv_occupancy()` / `refresh_mv_revenue()` (`0623`) let the restricted API role refresh the views it does not own.
+- [x] `python -m app.jobs.run_operations --loop` runs in the `worker` service of `docker-compose.yml`.
 - [ ] A merged migration is never edited: any change to `0619`–`0621` after the merge into `main` goes in a new file (`0622` onward).

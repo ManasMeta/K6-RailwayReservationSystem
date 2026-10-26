@@ -39,5 +39,5 @@
 
 ## 3. Seed & Test Files
 
-* **Seed:** `db/seeds/g6_seed.sql` (test user, PNR 1000000000 with 1 CNF, 2 RAC, 2 WL, paid through G5) and `db/seeds/g6_demo_data.sql` (about 17 bookings and 17 runs for analytics demos). Load order: G2, G3, stub, G5, G6 migrations, sample timetable, g6_seed, g6_demo_data.
-* **Test Suite:** `db/tests/g6_operations.sql` — Verifies unique constraints, check constraints, view output, cancel trigger cascading, and failure cases inside a transactional rollback.
+* **Seed:** `db/seeds/g6_demo_data.sql` (16 bookings made through `book_tickets()` and `pay_reservation()`, 15 runs, delays, charts) after `db/seeds/g1_demo_users.sql`. Load order: all migrations, `load_sample.py`, `generate_inventory.py`, g1_demo_users, g6_demo_data.
+* **Test Suite:** `db/tests/g6_operations.sql` and `g6_prepare_chart.sql` build their own booking, then verify unique constraints, check constraints, view output, cancel trigger cascading, and failure cases inside a transactional rollback.
