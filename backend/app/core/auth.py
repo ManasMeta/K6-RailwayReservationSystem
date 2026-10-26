@@ -67,6 +67,18 @@ def get_current_user(
     return decode_access_token(credentials.credentials)
 
 
+def optional_user(request: Request | None) -> UserPayload | None:
+    """The caller from a valid bearer token, or None (anonymous, expired or forged)."""
+    header = getattr(request, "headers", None)
+    scheme, _, token = ((header.get("authorization") if header else None) or "").partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        return None
+    try:
+        return decode_access_token(token.strip())
+    except HTTPException:
+        return None
+
+
 def get_current_user_id(request: Request) -> int:
     """Return the signed-in user's ID.
 

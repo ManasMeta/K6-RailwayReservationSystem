@@ -1,53 +1,71 @@
 -- Tests for prepare_chart(). Run:  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/g6_prepare_chart.sql
+-- Needs the migrated database and the CI sample timetable (train 12301, HWH -> NDLS).
 -- Everything happens inside one transaction that is rolled back at the end.
 BEGIN;
+SET LOCAL app.skip_booking_window_check = 'true';
 
 DO $$
 DECLARE
-    v_run   train_runs%ROWTYPE;
-    v_res   RECORD;
-    v_from  INT;
-    v_to    INT;
-    v_out   RECORD;
-    v_n     INT;
-    v_rac   BIGINT;
-    v_wl1   BIGINT;
-    v_wl2   BIGINT;
+    v_train  BIGINT;
+    v_user   BIGINT;
+    v_wallet BIGINT;
+    v_res    BIGINT;
+    v_run    train_runs%ROWTYPE;
+    v_date   DATE := current_date + 4;
+    v_topup  BIGINT;
+    v_txn    BIGINT;
+    v_out    RECORD;
+    v_n      INT;
+    v_rac    BIGINT;
+    v_wl1    BIGINT;
+    v_wl2    BIGINT;
 BEGIN
-    -- find an open run that has a confirmed booking
-    SELECT tr.* INTO v_run
-      FROM train_runs tr
-     WHERE tr.status IN ('SCHEDULED', 'DELAYED') AND NOT tr.chart_prepared
-       AND EXISTS (SELECT 1 FROM reservations r
-                    WHERE r.train_id = tr.train_id AND r.run_date = tr.run_date AND r.status = 'CONFIRMED')
-     ORDER BY tr.run_id LIMIT 1;
-    IF NOT FOUND THEN RAISE EXCEPTION 'TEST SETUP: no open run with a confirmed booking (load g6 demo data first)'; END IF;
+    SELECT train_id INTO v_train FROM trains WHERE train_no = '12301';
+    PERFORM generate_train_consist_coaches(v_train);
 
-    SELECT r.pnr, r.class_code, r.from_station_id, r.to_station_id INTO v_res
-      FROM reservations r
-     WHERE r.train_id = v_run.train_id AND r.run_date = v_run.run_date AND r.status = 'CONFIRMED'
-     ORDER BY r.pnr LIMIT 1;
-    SELECT seq INTO v_from FROM train_stops WHERE train_id = v_run.train_id AND station_id = v_res.from_station_id;
-    SELECT seq INTO v_to   FROM train_stops WHERE train_id = v_run.train_id AND station_id = v_res.to_station_id;
+    -- a paid booking with one confirmed passenger on a fresh run
+    INSERT INTO users (email, password_hash, full_name)
+    VALUES ('g6c-' || gen_random_uuid() || '@example.com', 'x', 'G6 Chart') RETURNING user_id INTO v_user;
+    INSERT INTO wallets (user_id) VALUES (v_user) RETURNING wallet_id INTO v_wallet;
+    INSERT INTO topups (wallet_id, idempotency_key, amount, status)
+    VALUES (v_wallet, 'g6c-' || gen_random_uuid(), 50000, 'PENDING') RETURNING topup_id INTO v_topup;
+    INSERT INTO ledger_txns (txn_type, reference_type, reference_id, status, description)
+    VALUES ('TOPUP', 'TOPUP', v_topup::TEXT, 'PENDING', 'g6 chart test') RETURNING ledger_txn_id INTO v_txn;
+    INSERT INTO ledger_entries (ledger_txn_id, account_code, entry_side, amount)
+    VALUES (v_txn, 'RAILWAY_CLEARING', 'DEBIT', 50000), (v_txn, 'CUSTOMER_WALLET', 'CREDIT', 50000);
+    UPDATE wallets SET balance = 50000 WHERE wallet_id = v_wallet;
+    UPDATE ledger_txns SET status = 'POSTED' WHERE ledger_txn_id = v_txn;
+    UPDATE topups SET ledger_txn_id = v_txn, status = 'COMPLETED' WHERE topup_id = v_topup;
+
+    INSERT INTO train_runs (train_id, run_date) VALUES (v_train, v_date) RETURNING * INTO v_run;
+
+    INSERT INTO reservations (pnr, user_id, train_no, run_date, from_station_code, to_station_code,
+                              from_seq, to_seq, class_code, quota_code)
+    VALUES ('8000000002', v_user, '12301', v_date, 'HWH', 'NDLS', 1, 4, '3A', 'GN')
+    RETURNING reservation_id INTO v_res;
+    INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, berth_preference)
+    VALUES (v_res, 'Test Confirmed', 30, 'Female', 'LB');
+    CALL book_tickets(v_res);
+    PERFORM pay_reservation(v_user, '8000000002');
 
     -- make the class FULL on that stretch (anonymous holds), so nobody can be promoted
     INSERT INTO berth_allocations (berth_id, run_date, stops, allocation_type)
-    SELECT fb.berth_id, v_run.run_date, int4range(v_from, v_to, '[)'), 'CNF'
-      FROM free_berths(v_run.train_id, v_run.run_date, v_from, v_to, v_res.class_code) fb;
+    SELECT fb.berth_id, v_date, int4range(1, 4, '[)'), 'CNF'
+      FROM free_berths(v_train, v_date, 1, 4, '3A') fb;
 
     -- booking order: RAC is added LAST but must still win over the waiting list
-    INSERT INTO reservation_passengers (pnr, full_name, age, gender, current_status, wl_number)
-    VALUES (v_res.pnr, 'Test Wl One', 30, 'F', 'WL', 1) RETURNING passenger_id INTO v_wl1;
-    INSERT INTO reservation_passengers (pnr, full_name, age, gender, current_status, wl_number)
-    VALUES (v_res.pnr, 'Test Wl Two', 30, 'F', 'WL', 2) RETURNING passenger_id INTO v_wl2;
-    INSERT INTO reservation_passengers (pnr, full_name, age, gender, current_status, rac_number)
-    VALUES (v_res.pnr, 'Test Rac One', 30, 'M', 'RAC', 1) RETURNING passenger_id INTO v_rac;
+    INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, current_status, booking_status, wl_number)
+    VALUES (v_res, 'Test Wl One', 30, 'Female', 'WL', 'WL', 1) RETURNING passenger_id INTO v_wl1;
+    INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, current_status, booking_status, wl_number)
+    VALUES (v_res, 'Test Wl Two', 30, 'Female', 'WL', 'WL', 2) RETURNING passenger_id INTO v_wl2;
+    INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, current_status, booking_status, rac_number)
+    VALUES (v_res, 'Test Rac One', 30, 'Male', 'RAC', 'RAC', 1) RETURNING passenger_id INTO v_rac;
 
     -- free exactly two berths (as if two people cancelled)
     DELETE FROM berth_allocations
      WHERE allocation_id IN (SELECT allocation_id FROM berth_allocations
-                              WHERE passenger_id IS NULL AND run_date = v_run.run_date
-                                AND stops = int4range(v_from, v_to, '[)')
+                              WHERE passenger_id IS NULL AND run_date = v_date
+                                AND stops = int4range(1, 4, '[)')
                               ORDER BY allocation_id LIMIT 2);
 
     SELECT * INTO v_out FROM prepare_chart(v_run.run_id, NULL);
@@ -90,19 +108,16 @@ BEGIN
 
     IF EXISTS (SELECT 1 FROM chart_entries ce
                  JOIN reservation_passengers rp ON rp.passenger_id = ce.passenger_id
-                 JOIN reservations r ON r.pnr = rp.pnr
+                 JOIN reservations r ON r.reservation_id = rp.reservation_id
                 WHERE ce.chart_id = v_out.o_chart_id
                   AND r.status NOT IN ('CONFIRMED', 'PARTIALLY_CANCELLED')) THEN
         RAISE EXCEPTION 'TEST 5b FAIL: chart contains passengers of unpaid or cancelled bookings'; END IF;
     RAISE NOTICE 'TEST 5b PASS: only paid bookings are on the chart';
-END $$;
 
-DO $$
-DECLARE v_cancelled BIGINT; v_state TEXT;
-BEGIN
-    SELECT run_id INTO v_cancelled FROM train_runs WHERE status = 'CANCELLED' LIMIT 1;
+    -- 6/7: a cancelled run and a missing run are refused
+    INSERT INTO train_runs (train_id, run_date, status) VALUES (v_train, v_date + 5, 'CANCELLED');
     BEGIN
-        PERFORM prepare_chart(v_cancelled);
+        PERFORM prepare_chart((SELECT run_id FROM train_runs WHERE train_id = v_train AND run_date = v_date + 5));
         RAISE EXCEPTION 'TEST 6 FAIL: cancelled run accepted';
     EXCEPTION WHEN object_not_in_prerequisite_state THEN
         RAISE NOTICE 'TEST 6 PASS: cancelled run refused';

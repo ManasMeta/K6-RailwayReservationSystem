@@ -1,50 +1,18 @@
 -- Author: G4 Member 3 (Database)
--- Test Suite: Group 4 Reservation Engine Database Assertions
+-- Test Suite: Group 4 Reservation Engine Database Assertions (runs on the fully migrated database)
 -- Usage: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/test_0400_reservations.sql
 
 BEGIN;
 
--- Setup test environment settings
+-- Setup: booking window check off (tests book on fixed future dates); user and coaches
 SET LOCAL app.skip_booking_window_check = 'true';
-SET LOCAL app.user_id = '1';
-
--- 1. Ensure test master data exists
-INSERT INTO zones (zone_code, zone_name)
-VALUES ('NR', 'Northern Railway')
-ON CONFLICT (zone_code) DO NOTHING;
-
-INSERT INTO stations (station_code, name, zone_code) VALUES
-    ('NDLS', 'New Delhi', 'NR'),
-    ('CNB', 'Kanpur Central', 'NR'),
-    ('PRYJ', 'Prayagraj Junction', 'NR'),
-    ('DDU', 'Pt. Deen Dayal Upadhyaya Jn', 'NR')
-ON CONFLICT (station_code) DO NOTHING;
-
-INSERT INTO trains (train_no, name, train_type, is_ac, source_station_code, dest_station_code)
-VALUES ('12424', 'Dibrugarh Rajdhani Express', 'Rajdhani', true, 'NDLS', 'DDU')
-ON CONFLICT (train_no) DO NOTHING;
-
-INSERT INTO train_stops (train_no, seq, station_code, arrival, departure, day_offset, distance_km) VALUES
-    ('12424', 1, 'NDLS', '16:10:00', '16:10:00', 0, 0),
-    ('12424', 2, 'CNB', '21:32:00', '21:37:00', 0, 440),
-    ('12424', 3, 'PRYJ', '23:08:00', '23:10:00', 0, 635),
-    ('12424', 4, 'DDU', '01:23:00', '01:33:00', 1, 790)
-ON CONFLICT (train_no, seq) DO NOTHING;
 
 INSERT INTO users (email, password_hash, full_name, phone)
-VALUES ('passenger.test@yatrio.in', 'hashed_pwd_123', 'Aarav Sharma', '9876543210')
+VALUES ('g4-test@yatrio.in', 'hashed_pwd_123', 'Aarav Sharma', '9876543210')
 ON CONFLICT (email) DO NOTHING;
 
--- Coaches and berths setup for testing
-INSERT INTO coaches (train_no, coach_code, class_code)
-VALUES ('12424', 'B1', '3A')
-ON CONFLICT (train_no, coach_code) DO NOTHING;
-
-INSERT INTO berths (coach_id, berth_number, berth_type)
-SELECT c.coach_id, n, CASE (n % 4) WHEN 1 THEN 'LB' WHEN 2 THEN 'MB' WHEN 3 THEN 'UB' ELSE 'SL' END
-FROM coaches c, generate_series(1, 4) n
-WHERE c.train_no = '12424' AND c.coach_code = 'B1'
-ON CONFLICT (coach_id, berth_number) DO NOTHING;
+-- Train 12301 (HWH 1 -> DDU 2 -> CNB 3 -> NDLS 4) comes from the CI sample import.
+SELECT generate_train_consist_coaches((SELECT train_id FROM trains WHERE train_no = '12301'));
 
 -- ====================================================================
 -- TEST 1: PNR Sequence and 10-Digit Constraint
@@ -70,13 +38,13 @@ DECLARE
     v_pass_id_1 BIGINT;
     v_pass_id_2 BIGINT;
 BEGIN
-    SELECT user_id INTO v_user_id FROM users WHERE email = 'passenger.test@yatrio.in' LIMIT 1;
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'g4-test@yatrio.in' LIMIT 1;
 
     INSERT INTO reservations (
         user_id, train_no, run_date, from_station_code, to_station_code,
         from_seq, to_seq, class_code, quota_code, status
     ) VALUES (
-        v_user_id, '12424', CURRENT_DATE + 5, 'NDLS', 'PRYJ',
+        v_user_id, '12301', CURRENT_DATE + 5, 'HWH', 'CNB',
         1, 3, '3A', 'GN', 'PENDING_PAYMENT'
     ) RETURNING reservation_id, pnr INTO v_res_id, v_pnr;
 
@@ -131,7 +99,7 @@ DECLARE
     v_berth_a BIGINT;
     v_berth_b BIGINT;
 BEGIN
-    SELECT user_id INTO v_user_id FROM users WHERE email = 'passenger.test@yatrio.in' LIMIT 1;
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'g4-test@yatrio.in' LIMIT 1;
 
     -- Clear previous test allocations
     DELETE FROM berth_allocations;
@@ -141,7 +109,7 @@ BEGIN
         user_id, train_no, run_date, from_station_code, to_station_code,
         from_seq, to_seq, class_code, quota_code
     ) VALUES (
-        v_user_id, '12424', CURRENT_DATE + 10, 'NDLS', 'CNB',
+        v_user_id, '12301', CURRENT_DATE + 10, 'HWH', 'DDU',
         1, 2, '3A', 'GN'
     ) RETURNING reservation_id INTO v_res_a;
 
@@ -157,7 +125,7 @@ BEGIN
         user_id, train_no, run_date, from_station_code, to_station_code,
         from_seq, to_seq, class_code, quota_code
     ) VALUES (
-        v_user_id, '12424', CURRENT_DATE + 10, 'CNB', 'DDU',
+        v_user_id, '12301', CURRENT_DATE + 10, 'DDU', 'NDLS',
         2, 4, '3A', 'GN'
     ) RETURNING reservation_id INTO v_res_b;
 
@@ -188,29 +156,31 @@ DECLARE
     v_pass_wl BIGINT;
     v_refund NUMERIC(10,2);
 BEGIN
-    SELECT user_id INTO v_user_id FROM users WHERE email = 'passenger.test@yatrio.in' LIMIT 1;
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'g4-test@yatrio.in' LIMIT 1;
     DELETE FROM berth_allocations;
 
     -- Setup: Allocate all 4 berths to ensure subsequent bookings go to RAC and WL
     -- Passenger 1 (CNF)
     INSERT INTO reservations (user_id, train_no, run_date, from_station_code, to_station_code, from_seq, to_seq, class_code, quota_code, status)
-    VALUES (v_user_id, '12424', CURRENT_DATE + 15, 'NDLS', 'DDU', 1, 4, '3A', 'GN', 'CONFIRMED')
+    VALUES (v_user_id, '12301', CURRENT_DATE + 15, 'HWH', 'NDLS', 1, 4, '3A', 'GN', 'CONFIRMED')
     RETURNING reservation_id INTO v_res_cnf;
     INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, berth_preference, fare)
     VALUES (v_res_cnf, 'Confirmed Passenger', 35, 'Male', 'LB', 1000.00)
     RETURNING passenger_id INTO v_pass_cnf;
     CALL book_tickets(v_res_cnf);
 
-    -- Simulate filling remaining berths
+    -- Simulate filling every remaining 3A berth on the run
     INSERT INTO berth_allocations (berth_id, run_date, stops)
     SELECT b.berth_id, CURRENT_DATE + 15, int4range(1, 4, '[)')
     FROM berths b
     JOIN coaches c ON b.coach_id = c.coach_id
-    WHERE c.train_no = '12424' AND c.coach_code = 'B1' AND b.berth_id <> (SELECT berth_id FROM reservation_passengers WHERE passenger_id = v_pass_cnf);
+    JOIN trains t ON t.train_id = c.train_id
+    WHERE t.train_no = '12301' AND c.class_code = '3A'
+      AND b.berth_id <> (SELECT berth_id FROM reservation_passengers WHERE passenger_id = v_pass_cnf);
 
     -- Book another passenger: should go to RAC
     INSERT INTO reservations (user_id, train_no, run_date, from_station_code, to_station_code, from_seq, to_seq, class_code, quota_code, status)
-    VALUES (v_user_id, '12424', CURRENT_DATE + 15, 'NDLS', 'DDU', 1, 4, '3A', 'GN', 'CONFIRMED')
+    VALUES (v_user_id, '12301', CURRENT_DATE + 15, 'HWH', 'NDLS', 1, 4, '3A', 'GN', 'CONFIRMED')
     RETURNING reservation_id INTO v_res_rac;
     INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, fare)
     VALUES (v_res_rac, 'RAC Passenger', 40, 'Female', 1000.00)
@@ -225,7 +195,7 @@ BEGIN
 
     -- Book another passenger: should go to WL
     INSERT INTO reservations (user_id, train_no, run_date, from_station_code, to_station_code, from_seq, to_seq, class_code, quota_code, status)
-    VALUES (v_user_id, '12424', CURRENT_DATE + 15, 'NDLS', 'DDU', 1, 4, '3A', 'GN', 'CONFIRMED')
+    VALUES (v_user_id, '12301', CURRENT_DATE + 15, 'HWH', 'NDLS', 1, 4, '3A', 'GN', 'CONFIRMED')
     RETURNING reservation_id INTO v_res_wl;
     INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, fare)
     VALUES (v_res_wl, 'WL Passenger', 22, 'Male', 1000.00)
@@ -266,13 +236,13 @@ DECLARE
     v_pnr VARCHAR(10);
     v_expired_count INT;
 BEGIN
-    SELECT user_id INTO v_user_id FROM users WHERE email = 'passenger.test@yatrio.in' LIMIT 1;
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'g4-test@yatrio.in' LIMIT 1;
 
     INSERT INTO reservations (
         user_id, train_no, run_date, from_station_code, to_station_code,
         from_seq, to_seq, class_code, quota_code, status, hold_expires_at
     ) VALUES (
-        v_user_id, '12424', CURRENT_DATE + 20, 'NDLS', 'CNB',
+        v_user_id, '12301', CURRENT_DATE + 20, 'HWH', 'DDU',
         1, 2, '3A', 'GN', 'PENDING_PAYMENT', now() - INTERVAL '1 minute'
     ) RETURNING reservation_id, pnr INTO v_res_id, v_pnr;
 
@@ -289,6 +259,108 @@ BEGIN
         'Reservation status must be marked EXPIRED';
 
     RAISE NOTICE 'TEST 5 PASSED: release_expired_holds() successfully expired hold and cleaned up records';
+END $$;
+
+-- ====================================================================
+-- TEST 6: Booking window (is_booking_open) and departure_at
+-- ====================================================================
+DO $$
+DECLARE
+    v_user_id BIGINT;
+    v_today DATE := (now() AT TIME ZONE 'Asia/Kolkata')::DATE;
+    v_departure TIMESTAMPTZ;
+    v_res_id BIGINT;
+    v_state TEXT;
+BEGIN
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'g4-test@yatrio.in' LIMIT 1;
+    PERFORM set_config('app.skip_booking_window_check', 'false', true);
+
+    -- 6a: past dates are refused
+    BEGIN
+        INSERT INTO reservations (user_id, train_no, run_date, from_station_code, to_station_code, from_seq, to_seq, class_code, quota_code)
+        VALUES (v_user_id, '12301', v_today - 1, 'HWH', 'NDLS', 1, 4, '3A', 'GN');
+        RAISE EXCEPTION 'a past travel date was accepted';
+    EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+    END;
+
+    -- 6b: more than 60 days ahead is refused
+    BEGIN
+        INSERT INTO reservations (user_id, train_no, run_date, from_station_code, to_station_code, from_seq, to_seq, class_code, quota_code)
+        VALUES (v_user_id, '12301', v_today + 61, 'HWH', 'NDLS', 1, 4, '3A', 'GN');
+        RAISE EXCEPTION 'a date beyond the 60-day window was accepted';
+    EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+    END;
+
+    -- 6c: Tatkal opens only the day before travel
+    BEGIN
+        INSERT INTO reservations (user_id, train_no, run_date, from_station_code, to_station_code, from_seq, to_seq, class_code, quota_code)
+        VALUES (v_user_id, '12301', v_today + 5, 'HWH', 'NDLS', 1, 4, '3A', 'TQ');
+        RAISE EXCEPTION 'Tatkal was accepted five days ahead';
+    EXCEPTION WHEN SQLSTATE '22023' THEN NULL;
+    END;
+
+    -- 6d: a normal booking inside the window is accepted and gets departure_at (16:55 IST at HWH)
+    INSERT INTO reservations (user_id, train_no, run_date, from_station_code, to_station_code, from_seq, to_seq, class_code, quota_code)
+    VALUES (v_user_id, '12301', v_today + 5, 'HWH', 'NDLS', 1, 4, '3A', 'GN')
+    RETURNING reservation_id, departure_at INTO v_res_id, v_departure;
+    ASSERT v_departure = ((v_today + 5) + TIME '16:55') AT TIME ZONE 'Asia/Kolkata',
+        format('departure_at should be 16:55 IST on the run date, got %s', v_departure);
+
+    RAISE NOTICE 'TEST 6 PASSED: booking window rules enforced and departure_at derived from the timetable';
+END $$;
+
+-- ====================================================================
+-- TEST 7: pay -> cancel -> refund through G5 (the G4/G5 contract)
+-- ====================================================================
+DO $$
+DECLARE
+    v_user_id BIGINT;
+    v_wallet BIGINT;
+    v_res_id BIGINT;
+    v_pnr VARCHAR(10);
+    v_pass BIGINT;
+    v_refund NUMERIC(10,2);
+    v_paid NUMERIC(10,2);
+    v_topup BIGINT;
+    v_txn BIGINT;
+BEGIN
+    SELECT user_id INTO v_user_id FROM users WHERE email = 'g4-test@yatrio.in' LIMIT 1;
+    PERFORM set_config('app.skip_booking_window_check', 'true', true);
+
+    INSERT INTO wallets (user_id) VALUES (v_user_id) ON CONFLICT (user_id) DO NOTHING;
+    SELECT wallet_id INTO v_wallet FROM wallets WHERE user_id = v_user_id;
+    INSERT INTO topups (wallet_id, idempotency_key, amount, status)
+    VALUES (v_wallet, 'g4-' || gen_random_uuid(), 20000, 'PENDING') RETURNING topup_id INTO v_topup;
+    INSERT INTO ledger_txns (txn_type, reference_type, reference_id, status, description)
+    VALUES ('TOPUP', 'TOPUP', v_topup::TEXT, 'PENDING', 'g4 test') RETURNING ledger_txn_id INTO v_txn;
+    INSERT INTO ledger_entries (ledger_txn_id, account_code, entry_side, amount)
+    VALUES (v_txn, 'RAILWAY_CLEARING', 'DEBIT', 20000), (v_txn, 'CUSTOMER_WALLET', 'CREDIT', 20000);
+    UPDATE wallets SET balance = balance + 20000 WHERE wallet_id = v_wallet;
+    UPDATE ledger_txns SET status = 'POSTED' WHERE ledger_txn_id = v_txn;
+    UPDATE topups SET ledger_txn_id = v_txn, status = 'COMPLETED' WHERE topup_id = v_topup;
+
+    INSERT INTO reservations (user_id, train_no, run_date, from_station_code, to_station_code, from_seq, to_seq, class_code, quota_code)
+    VALUES (v_user_id, '12301', CURRENT_DATE + 30, 'HWH', 'NDLS', 1, 4, '3A', 'GN')
+    RETURNING reservation_id, pnr INTO v_res_id, v_pnr;
+    INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender)
+    VALUES (v_res_id, 'Refund Tester', 33, 'Male') RETURNING passenger_id INTO v_pass;
+    CALL book_tickets(v_res_id);
+
+    PERFORM pay_reservation(v_user_id, v_pnr);
+    ASSERT (SELECT status FROM reservations WHERE reservation_id = v_res_id) = 'CONFIRMED',
+        'payment must confirm the reservation';
+    SELECT amount INTO v_paid FROM payments WHERE pnr = v_pnr;
+
+    -- cancelled 30 days out: 90% back to the wallet, and cancel_passenger() reports that amount
+    v_refund := cancel_passenger(v_pass, 'test');
+    ASSERT v_refund = round(v_paid * 0.90, 2), format('expected 90%% of %s back, got %s', v_paid, v_refund);
+    ASSERT (SELECT amount FROM refunds WHERE pnr = v_pnr) = v_refund, 'wallet refund must equal the reported refund';
+    ASSERT (SELECT refund_amount FROM cancellations WHERE passenger_id = v_pass) = v_refund,
+        'cancellations.refund_amount must hold the credited amount';
+    ASSERT (SELECT status FROM reservations WHERE reservation_id = v_res_id) = 'CANCELLED',
+        'a fully cancelled reservation must be CANCELLED';
+
+    RAISE NOTICE 'TEST 7 PASSED: pay -> cancel_passenger() -> wallet refund agree (refund %)', v_refund;
 END $$;
 
 ROLLBACK; -- Clean rollback of test suite

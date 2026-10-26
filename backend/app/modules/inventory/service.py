@@ -1,4 +1,5 @@
 from datetime import date
+
 from psycopg import Connection
 
 from app.modules.inventory import schemas, sql

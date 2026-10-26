@@ -5,10 +5,12 @@ from fastapi import APIRouter, Depends
 from psycopg import Connection
 from pydantic import BaseModel
 
+from app.core.auth import UserPayload, require_role
 from app.core.database import get_db_connection
 from app.modules.operations import chart_service
 
-router = APIRouter(prefix="/ops", tags=["Operations"])
+StaffOnly = Depends(require_role(["staff", "admin"]))
+router = APIRouter(prefix="/ops", tags=["Operations"], dependencies=[StaffOnly])
 Db = Annotated[Connection, Depends(get_db_connection)]
 
 # TODO(G1): staff-only. Add the same require_staff dependency as the other /ops routes.
@@ -44,9 +46,13 @@ class ChartOut(BaseModel):
 
 
 @router.post("/runs/{run_id}/chart", response_model=ChartSummaryOut)
-def prepare_chart(run_id: int, conn: Db):
+def prepare_chart(
+    run_id: int,
+    conn: Db,
+    staff: Annotated[UserPayload, Depends(require_role(["staff", "admin"]))],
+):
     """Prepare the final chart: waiting passengers get freed berths, then the run is locked."""
-    return chart_service.prepare_chart(conn, run_id)
+    return chart_service.prepare_chart(conn, run_id, staff.user_id)
 
 
 @router.get("/runs/{run_id}/chart", response_model=ChartOut)

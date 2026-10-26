@@ -1,7 +1,7 @@
 """Payment, refund, ticket and statement flows against a real PostgreSQL 16.
 
-Uses the g5_migration_check schema like the top-up integration tests: G5
-migrations 0501-0516 plus db/tests/support/g5_contract_stubs.sql.
+Runs on the fully migrated database (G1 users, G4 reservations, G5 wallet) with the CI
+sample timetable loaded (train 12301, HWH -> NDLS). Skipped when no database is reachable.
 """
 import os
 from concurrent.futures import ThreadPoolExecutor
@@ -27,14 +27,10 @@ from app.modules.wallet.service import (
 from app.modules.wallet.ticket_pdf import render_ticket_pdf
 
 URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5433/nrrms")
-SCHEMA = "g5_migration_check"
 
 
 def connect():
-    connection = psycopg.connect(URL, row_factory=dict_row, connect_timeout=3)
-    connection.execute(f"SET search_path TO {SCHEMA}, public")
-    connection.commit()  # keep the setting: a later rollback must not undo it
-    return connection
+    return psycopg.connect(URL, row_factory=dict_row, connect_timeout=3)
 
 
 @pytest.fixture
@@ -54,19 +50,43 @@ def db():
 
 
 def make_user(connection):
-    return connection.execute("INSERT INTO users DEFAULT VALUES RETURNING user_id").fetchone()["user_id"]
+    return connection.execute(
+        "INSERT INTO users (email, password_hash, full_name) VALUES (%s, 'x', 'Wallet Test') RETURNING user_id",
+        (f"wallet-{uuid4().hex}@example.com",),
+    ).fetchone()["user_id"]
 
 
 def make_reservation(connection, user_id, fare="400.00", hours=72, status="PENDING_PAYMENT"):
     pnr = str(uuid4().int)[:10]
     connection.execute(
         """
-        INSERT INTO reservations (pnr, user_id, total_fare, status, departure_at)
-        VALUES (%s, %s, %s, %s, now() + make_interval(hours => %s))
+        INSERT INTO reservations (pnr, user_id, train_no, run_date, from_station_code, to_station_code,
+                                  from_seq, to_seq, class_code, quota_code, total_fare, status, departure_at)
+        VALUES (%s, %s, '12301', current_date + 5, 'HWH', 'NDLS', 1, 4, '3A', 'GN', %s, %s,
+                now() + make_interval(hours => %s))
         """,
         (pnr, user_id, Decimal(fare), status, hours),
     )
     return pnr
+
+
+def cancel(connection, pnr, fare="400.00"):
+    """Cancel one passenger of the reservation, which fires G5's refund trigger."""
+    reservation_id = connection.execute(
+        "SELECT reservation_id FROM reservations WHERE pnr = %s", (pnr,)
+    ).fetchone()["reservation_id"]
+    passenger_id = connection.execute(
+        """
+        INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, fare,
+                                            booking_status, current_status)
+        VALUES (%s, 'Test Passenger', 30, 'Male', %s, 'CNF', 'CNF') RETURNING passenger_id
+        """,
+        (reservation_id, Decimal(fare)),
+    ).fetchone()["passenger_id"]
+    connection.execute(
+        "INSERT INTO cancellations (reservation_id, passenger_id) VALUES (%s, %s)",
+        (reservation_id, passenger_id),
+    )
 
 
 def fund(connection, user_id, amount):
@@ -139,7 +159,7 @@ def test_refund_after_cancellation_appears_in_refunds_and_statement(db):
     pnr = make_reservation(db, user, fare="400.00", hours=30)
     pay_reservation(db, user, pnr)
 
-    db.execute("INSERT INTO cancellations (pnr, fare_amount) VALUES (%s, 400.00)", (pnr,))
+    cancel(db, pnr, "400.00")
 
     refunds = get_refunds(db, user)
     assert refunds["total"] == 1

@@ -5,10 +5,15 @@ from fastapi import APIRouter, Depends, Query
 from psycopg import Connection
 from pydantic import BaseModel
 
+from app.core.auth import require_role
 from app.core.database import get_db_connection
 from app.modules.operations import reports_service
 
-router = APIRouter(prefix="/reports", tags=["Reports"])
+router = APIRouter(
+    prefix="/reports",
+    tags=["Reports"],
+    dependencies=[Depends(require_role(["admin"]))],
+)
 Db = Annotated[Connection, Depends(get_db_connection)]
 DateFrom = Annotated[date | None, Query(alias="from", description="first day, e.g. 2026-10-20")]
 DateTo = Annotated[date | None, Query(alias="to", description="last day, e.g. 2026-10-26")]

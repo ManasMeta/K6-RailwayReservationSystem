@@ -21,11 +21,13 @@ from app.modules.reservations.schemas import (
 
 class ReservationService:
     @staticmethod
-    def create_reservation(payload: ReservationCreate, user_id: int) -> ReservationResponse:
+    def create_reservation(
+        payload: ReservationCreate, user_id: int, role: Optional[str] = None
+    ) -> ReservationResponse:
         """Creates a booking hold (PENDING_PAYMENT), acquires transactional advisory lock,
         and invokes book_tickets() to allocate berths/RAC/WL.
         """
-        with db_session(user_id=user_id) as conn:
+        with db_session(user_id=user_id, role=role) as conn:
             with conn.cursor() as cur:
                 # 1. Resolve stop sequences for from and to stations
                 cur.execute(
@@ -122,9 +124,11 @@ class ReservationService:
                 )
 
     @staticmethod
-    def get_reservation_by_pnr(pnr: str, user_id: Optional[int] = None) -> ReservationResponse:
+    def get_reservation_by_pnr(
+        pnr: str, user_id: Optional[int] = None, role: Optional[str] = None
+    ) -> ReservationResponse:
         """Retrieves complete reservation details and passenger allocations by 10-digit PNR."""
-        with db_session(user_id=user_id) as conn:
+        with db_session(user_id=user_id, role=role) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL_GET_RESERVATION_BY_PNR, (pnr,))
                 res_row = cur.fetchone()
@@ -154,10 +158,11 @@ class ReservationService:
         page: int = 1,
         page_size: int = 10,
         status_filter: Optional[str] = None,
+        role: Optional[str] = None,
     ) -> ReservationListResponse:
         """Lists reservations for the logged-in passenger with pagination."""
         offset = (page - 1) * page_size
-        with db_session(user_id=user_id) as conn:
+        with db_session(user_id=user_id, role=role) as conn:
             with conn.cursor() as cur:
                 cur.execute(
                     sql.SQL_COUNT_USER_RESERVATIONS,
@@ -194,11 +199,12 @@ class ReservationService:
         pnr: str,
         payload: CancelPassengersRequest,
         user_id: int,
+        role: Optional[str] = None,
     ) -> CancellationResponse:
         """Cancels specific passengers on a reservation, releases berths, promotes RAC/WL,
         and computes applicable refunds.
         """
-        with db_session(user_id=user_id) as conn:
+        with db_session(user_id=user_id, role=role) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL_GET_RESERVATION_BY_PNR, (pnr,))
                 res_row = cur.fetchone()
@@ -264,16 +270,16 @@ class ReservationService:
     @staticmethod
     def release_expired_holds() -> int:
         """Releases overdue pending holds and restores inventory."""
-        with db_session() as conn:
+        with db_session(role="system") as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL_RELEASE_EXPIRED_HOLDS)
                 row = cur.fetchone()
                 return int(row["released_count"]) if row else 0
 
     @staticmethod
-    def confirm_reservation(pnr: str) -> bool:
+    def confirm_reservation(pnr: str, role: Optional[str] = None) -> bool:
         """Confirms payment and locks in reservation status."""
-        with db_session() as conn:
+        with db_session(role=role) as conn:
             with conn.cursor() as cur:
                 cur.execute(sql.SQL_CONFIRM_RESERVATION, (pnr,))
                 row = cur.fetchone()

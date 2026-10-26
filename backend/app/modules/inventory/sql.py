@@ -13,7 +13,7 @@ ORDER BY quota_code;
 """
 
 RESOLVE_TRAIN_AND_STOPS = """
-SELECT 
+SELECT
     t.train_id,
     s_from.seq AS from_seq,
     s_to.seq AS to_seq
@@ -26,7 +26,7 @@ WHERE t.train_no = %(train_no)s;
 """
 
 AVAILABILITY_GRID = """
-SELECT 
+SELECT
     travel_date,
     class_code,
     class_name,
@@ -46,7 +46,7 @@ FROM availability_grid(
 """
 
 CALCULATE_FARE = """
-SELECT 
+SELECT
     distance_km,
     base,
     reservation_fee,
@@ -79,12 +79,12 @@ WHERE coach_id = %(coach_id)s;
 """
 
 GET_COACH_BERTHS_WITH_STATUS = """
-SELECT 
+SELECT
     b.berth_id,
     b.berth_number,
     b.berth_type,
     NOT EXISTS (
-        SELECT 1 
+        SELECT 1
         FROM berth_allocations ba
         WHERE ba.berth_id = b.berth_id
           AND ba.run_date = %(run_date)s

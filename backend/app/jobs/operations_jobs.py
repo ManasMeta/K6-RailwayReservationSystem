@@ -8,7 +8,7 @@ Run them with:  python -m app.jobs.run_operations --help
 
 import logging
 
-from app.core.database import get_db_connection
+from app.core.database import system_connection
 from app.modules.operations import chart_service, reports_service
 from app.modules.operations.errors import OperationsError
 
@@ -66,11 +66,7 @@ def refresh_report_views(conn):
 
 def run_once(cutoff_hours=CHART_CUTOFF_HOURS):
     """One pass of every job on a fresh connection: charts first, then the views."""
-    connection_generator = get_db_connection()
-    conn = next(connection_generator)
-    try:
+    with system_connection() as conn:
         charts = prepare_due_charts(conn, cutoff_hours)
         views = refresh_report_views(conn)
         return {"charts": charts, "views": views}
-    finally:
-        connection_generator.close()

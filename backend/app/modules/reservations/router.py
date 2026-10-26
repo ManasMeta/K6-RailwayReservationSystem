@@ -31,7 +31,7 @@ def create_reservation(
     payload: ReservationCreate,
     current_user: UserPayload = Depends(get_current_user),
 ) -> ReservationResponse:
-    return ReservationService.create_reservation(payload, user_id=current_user.user_id)
+    return ReservationService.create_reservation(payload, user_id=current_user.user_id, role=current_user.role)
 
 
 @router.get(
@@ -48,6 +48,7 @@ def list_reservations(
 ) -> ReservationListResponse:
     return ReservationService.list_reservations(
         user_id=current_user.user_id,
+        role=current_user.role,
         page=page,
         page_size=page_size,
         status_filter=status,
@@ -64,7 +65,7 @@ def get_reservation(
     pnr: str,
     current_user: UserPayload = Depends(get_current_user),
 ) -> ReservationResponse:
-    return ReservationService.get_reservation_by_pnr(pnr=pnr, user_id=current_user.user_id)
+    return ReservationService.get_reservation_by_pnr(pnr=pnr, user_id=current_user.user_id, role=current_user.role)
 
 
 @router.post(
@@ -81,7 +82,9 @@ def cancel_passengers(
     payload: CancelPassengersRequest,
     current_user: UserPayload = Depends(get_current_user),
 ) -> CancellationResponse:
-    return ReservationService.cancel_passengers(pnr=pnr, payload=payload, user_id=current_user.user_id)
+    return ReservationService.cancel_passengers(
+        pnr=pnr, payload=payload, user_id=current_user.user_id, role=current_user.role
+    )
 
 
 @router.post(
@@ -96,7 +99,7 @@ def confirm_reservation(
     pnr: str,
     current_user: UserPayload = Depends(require_role(["staff", "admin"])),
 ) -> dict:
-    success = ReservationService.confirm_reservation(pnr=pnr)
+    success = ReservationService.confirm_reservation(pnr=pnr, role=current_user.role)
     return {"pnr": pnr, "confirmed": success, "status": "CONFIRMED"}
 
 

@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from psycopg import Connection
 
+from app.core.auth import require_role
 from app.core.database import get_db_connection
 from app.modules.operations import service
 from app.modules.operations.schemas import (
@@ -13,10 +14,12 @@ from app.modules.operations.schemas import (
     RunOut,
 )
 
-router = APIRouter(prefix="/ops", tags=["Operations"])
+router = APIRouter(
+    prefix="/ops",
+    tags=["Operations"],
+    dependencies=[Depends(require_role(["staff", "admin"]))],
+)
 Db = Annotated[Connection, Depends(get_db_connection)]
-
-# TODO(G1): staff-only. Add a require_staff dependency here once G1's login and roles exist.
 
 
 @router.get("/runs", response_model=list[RunOut])

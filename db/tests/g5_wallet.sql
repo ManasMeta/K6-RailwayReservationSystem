@@ -1,7 +1,7 @@
 -- G5 wallet assertions: refund tiers, pay_reservation(), the cancellation
 -- refund trigger and the running-balance statement.
--- Needs G1 users and G4 reservations/cancellations/confirm_reservation (or the
--- stand-ins in db/tests/support/g5_contract_stubs.sql):
+-- Runs against the fully migrated database (G1 users, G4 reservations/cancellations,
+-- G5 wallet), using the train 12301 timetable from the CI sample import:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/tests/g5_wallet.sql
 -- Each block runs in a transaction that is rolled back.
 
@@ -22,6 +22,45 @@ BEGIN
     IF refund_amount(333.33, 24) <> 250.00 THEN RAISE EXCEPTION 'rounding wrong: %', refund_amount(333.33, 24); END IF;
 END $$;
 ROLLBACK;
+
+-- Test helpers (session-local).
+CREATE OR REPLACE FUNCTION pg_temp.mk_user() RETURNS BIGINT LANGUAGE sql AS $$
+    INSERT INTO users (email, password_hash, full_name)
+    VALUES ('g5-' || gen_random_uuid() || '@example.com', 'x', 'G5 Test')
+    RETURNING user_id;
+$$;
+
+-- A real G4 reservation (HWH -> NDLS on train 12301) with the given PNR, fare and departure.
+CREATE OR REPLACE FUNCTION pg_temp.mk_res(
+    p_user BIGINT, p_pnr TEXT, p_fare NUMERIC, p_departure TIMESTAMPTZ,
+    p_status TEXT DEFAULT 'PENDING_PAYMENT'
+) RETURNS BIGINT LANGUAGE plpgsql AS $$
+DECLARE v_id BIGINT;
+BEGIN
+    PERFORM set_config('app.skip_booking_window_check', 'true', true);
+    INSERT INTO reservations (pnr, user_id, train_no, run_date, from_station_code, to_station_code,
+                              from_seq, to_seq, class_code, quota_code, status, total_fare, departure_at)
+    VALUES (p_pnr, p_user, '12301', current_date + 5, 'HWH', 'NDLS', 1, 4, '3A', 'GN',
+            p_status, p_fare, p_departure)
+    RETURNING reservation_id INTO v_id;
+    RETURN v_id;
+END $$;
+
+-- Cancels a passenger paying p_fare on reservation p_pnr by inserting the cancellations row.
+CREATE OR REPLACE FUNCTION pg_temp.cancel_row(p_pnr TEXT, p_fare NUMERIC, p_full BOOLEAN DEFAULT false)
+RETURNS BIGINT LANGUAGE plpgsql AS $$
+DECLARE v_res BIGINT; v_pass BIGINT; v_cancel BIGINT;
+BEGIN
+    SELECT reservation_id INTO v_res FROM reservations WHERE pnr = p_pnr;
+    INSERT INTO reservation_passengers (reservation_id, passenger_name, age, gender, fare,
+                                        booking_status, current_status)
+    VALUES (v_res, 'Test Passenger', 30, 'Male', p_fare, 'CNF', 'CNF')
+    RETURNING passenger_id INTO v_pass;
+    INSERT INTO cancellations (reservation_id, passenger_id, full_refund)
+    VALUES (v_res, v_pass, p_full)
+    RETURNING cancellation_id INTO v_cancel;
+    RETURN v_cancel;
+END $$;
 
 -- Test helper: credit a wallet through a balanced, posted ledger transaction.
 CREATE OR REPLACE FUNCTION pg_temp.fund(p_wallet BIGINT, p_amount NUMERIC)
@@ -52,11 +91,10 @@ DECLARE
     v_wallet BIGINT;
     r RECORD;
 BEGIN
-    INSERT INTO users DEFAULT VALUES RETURNING user_id INTO v_user;
+    v_user := pg_temp.mk_user();
     INSERT INTO wallets (user_id) VALUES (v_user) RETURNING wallet_id INTO v_wallet;
     PERFORM pg_temp.fund(v_wallet, 1000);
-    INSERT INTO reservations (pnr, user_id, total_fare, departure_at)
-    VALUES ('1000000001', v_user, 400.00, now() + interval '3 days');
+    PERFORM pg_temp.mk_res(v_user, '1000000001', 400.00, now() + interval '3 days');
 
     SELECT * INTO r FROM pay_reservation(v_user, '1000000001');
     IF r.o_amount <> 400.00 OR r.o_balance <> 600.00 OR r.o_replayed
@@ -99,14 +137,12 @@ DECLARE
     v_other BIGINT;
     v_wallet BIGINT;
 BEGIN
-    INSERT INTO users DEFAULT VALUES RETURNING user_id INTO v_user;
-    INSERT INTO users DEFAULT VALUES RETURNING user_id INTO v_other;
+    v_user := pg_temp.mk_user();
+    v_other := pg_temp.mk_user();
     INSERT INTO wallets (user_id) VALUES (v_user) RETURNING wallet_id INTO v_wallet;
     PERFORM pg_temp.fund(v_wallet, 100);
-    INSERT INTO reservations (pnr, user_id, total_fare, departure_at)
-    VALUES ('1000000002', v_user, 250.00, now() + interval '3 days');
-    INSERT INTO reservations (pnr, user_id, total_fare, status, departure_at)
-    VALUES ('1000000003', v_user, 50.00, 'CONFIRMED', now() + interval '3 days');
+    PERFORM pg_temp.mk_res(v_user, '1000000002', 250.00, now() + interval '3 days');
+    PERFORM pg_temp.mk_res(v_user, '1000000003', 50.00, now() + interval '3 days', 'CONFIRMED');
 
     BEGIN
         PERFORM pay_reservation(v_user, '1000000002');
@@ -145,16 +181,15 @@ DECLARE
     v_user BIGINT;
     v_wallet BIGINT;
 BEGIN
-    INSERT INTO users DEFAULT VALUES RETURNING user_id INTO v_user;
+    v_user := pg_temp.mk_user();
     INSERT INTO wallets (user_id) VALUES (v_user) RETURNING wallet_id INTO v_wallet;
     PERFORM pg_temp.fund(v_wallet, 2000);
-    INSERT INTO reservations (pnr, user_id, total_fare, departure_at)
-    VALUES ('1000000004', v_user, 1000.00, now() + interval '24 hours'),
-           ('1000000005', v_user, 300.00, now() + interval '24 hours');
+    PERFORM pg_temp.mk_res(v_user, '1000000004', 1000.00, now() + interval '24 hours');
+    PERFORM pg_temp.mk_res(v_user, '1000000005', 300.00, now() + interval '24 hours');
     PERFORM pay_reservation(v_user, '1000000004');
 
     -- 24h before departure: 75% of the cancelled passenger's 400.
-    INSERT INTO cancellations (pnr, fare_amount) VALUES ('1000000004', 400.00);
+    PERFORM pg_temp.cancel_row('1000000004', 400.00);
     IF (SELECT amount FROM refunds WHERE pnr = '1000000004') <> 300.00
        OR (SELECT balance FROM wallets WHERE wallet_id = v_wallet) <> 1300.00 THEN
         RAISE EXCEPTION 'tiered refund wrong, balance %',
@@ -162,7 +197,7 @@ BEGIN
     END IF;
 
     -- Railway cancelled the run: full refund of the rest, capped at what was paid.
-    INSERT INTO cancellations (pnr, fare_amount, full_refund) VALUES ('1000000004', 900.00, true);
+    PERFORM pg_temp.cancel_row('1000000004', 900.00, true);
     IF (SELECT sum(amount) FROM refunds WHERE pnr = '1000000004') <> 1000.00
        OR (SELECT balance FROM wallets WHERE wallet_id = v_wallet) <> 2000.00 THEN
         RAISE EXCEPTION 'cap wrong: refunds %, balance %',
@@ -171,13 +206,13 @@ BEGIN
     END IF;
 
     -- Nothing left to refund.
-    INSERT INTO cancellations (pnr, fare_amount, full_refund) VALUES ('1000000004', 50.00, true);
+    PERFORM pg_temp.cancel_row('1000000004', 50.00, true);
     IF (SELECT count(*) FROM refunds WHERE pnr = '1000000004') <> 2 THEN
         RAISE EXCEPTION 'refunded more than was paid';
     END IF;
 
     -- An unpaid hold has nothing to refund.
-    INSERT INTO cancellations (pnr, fare_amount, full_refund) VALUES ('1000000005', 300.00, true);
+    PERFORM pg_temp.cancel_row('1000000005', 300.00, true);
     IF EXISTS (SELECT 1 FROM refunds WHERE pnr = '1000000005') THEN
         RAISE EXCEPTION 'unpaid hold was refunded';
     END IF;
@@ -195,13 +230,12 @@ DECLARE
     v_balances NUMERIC[];
     v_kinds TEXT[];
 BEGIN
-    INSERT INTO users DEFAULT VALUES RETURNING user_id INTO v_user;
+    v_user := pg_temp.mk_user();
     INSERT INTO wallets (user_id) VALUES (v_user) RETURNING wallet_id INTO v_wallet;
     PERFORM pg_temp.fund(v_wallet, 1000);
-    INSERT INTO reservations (pnr, user_id, total_fare, departure_at)
-    VALUES ('1000000006', v_user, 400.00, now() + interval '30 hours');
+    PERFORM pg_temp.mk_res(v_user, '1000000006', 400.00, now() + interval '30 hours');
     PERFORM pay_reservation(v_user, '1000000006');
-    INSERT INTO cancellations (pnr, fare_amount) VALUES ('1000000006', 400.00);  -- 75% = 300
+    PERFORM pg_temp.cancel_row('1000000006', 400.00);  -- 75% = 300
 
     SELECT array_agg(balance_after ORDER BY ledger_txn_id), array_agg(kind ORDER BY ledger_txn_id)
       INTO v_balances, v_kinds

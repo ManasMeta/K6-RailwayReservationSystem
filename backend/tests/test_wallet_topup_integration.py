@@ -18,11 +18,11 @@ def db():
         "DATABASE_URL",
         "postgresql://postgres:postgres@localhost:5433/nrrms",
     )
-    connection = psycopg.connect(url, row_factory=dict_row)
     try:
-        connection.execute(
-            "SET search_path TO g5_migration_check, public"
-        )
+        connection = psycopg.connect(url, row_factory=dict_row, connect_timeout=3)
+    except psycopg.Error:
+        pytest.skip("database is not available")
+    try:
         yield connection
     finally:
         connection.rollback()
@@ -31,7 +31,8 @@ def db():
 
 def make_user(connection):
     row = connection.execute(
-        "INSERT INTO users DEFAULT VALUES RETURNING user_id"
+        "INSERT INTO users (email, password_hash, full_name) VALUES (%s, 'x', 'Topup Test') RETURNING user_id",
+        (f"topup-{uuid4().hex}@example.com",),
     ).fetchone()
     return row["user_id"]
 

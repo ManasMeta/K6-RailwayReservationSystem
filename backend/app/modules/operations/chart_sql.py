@@ -17,10 +17,11 @@ WHERE run_id = %(run_id)s
 """
 
 CHART_ENTRIES = """
-SELECT ce.passenger_id, rp.pnr, rp.full_name AS name, rp.current_status AS status,
+SELECT ce.passenger_id, r.pnr, rp.passenger_name AS name, rp.current_status AS status,
        ce.coach_code, ce.berth_no, ce.berth_type, ce.quota_code
 FROM chart_entries ce
 JOIN reservation_passengers rp ON rp.passenger_id = ce.passenger_id
+JOIN reservations r ON r.reservation_id = rp.reservation_id
 WHERE ce.chart_id = %(chart_id)s
 ORDER BY ce.coach_code NULLS LAST, ce.berth_no NULLS LAST, ce.passenger_id
 """

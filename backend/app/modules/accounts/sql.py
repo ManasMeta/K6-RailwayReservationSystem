@@ -7,18 +7,11 @@ USER_COLUMNS = """
     ), 'passenger') AS role
 """
 
-INSERT_USER = """
-    INSERT INTO users (email, password_hash, full_name, phone)
-    VALUES (%s, %s, %s, %s)
-    RETURNING user_id
-"""
+# Sign-up and login run before the caller is identified, so they go through the SECURITY DEFINER
+# functions from db/migrations/0100_g1_accounts/0103 (row-level security hides the rows otherwise).
+REGISTER = "SELECT auth_register(%s, %s, %s, %s) AS user_id"
 
-INSERT_PASSENGER_ROLE = """
-    INSERT INTO user_roles (user_id, role_id)
-    SELECT %s::bigint, role_id FROM roles WHERE role_name = 'passenger'
-"""
-
-GET_USER_BY_EMAIL = f"SELECT {USER_COLUMNS} FROM users u WHERE u.email = %s"
+GET_USER_BY_EMAIL = "SELECT * FROM auth_user_by_email(%s)"
 
 GET_USER_BY_ID = f"SELECT {USER_COLUMNS} FROM users u WHERE u.user_id = %s"
 

@@ -7,8 +7,8 @@ import pytest
 IMPORT_DIR = Path(__file__).resolve().parents[3] / "db" / "import"
 sys.path.insert(0, str(IMPORT_DIR))
 
-import load_train_details
-import load_zones
+import load_train_details  # noqa: E402  (path is added just above)
+import load_zones  # noqa: E402
 
 SAMPLE = IMPORT_DIR.parent / "seeds" / "g2_train_details_sample.csv"
 

@@ -69,5 +69,5 @@ ORDER BY passengers DESC, t.train_no, a.seq
 LIMIT %(limit)s
 """
 
-REFRESH_OCCUPANCY = "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_occupancy"
-REFRESH_REVENUE = "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_revenue"
+REFRESH_OCCUPANCY = "SELECT refresh_mv_occupancy()"  # SECURITY DEFINER wrapper: the API role does not own the view
+REFRESH_REVENUE = "SELECT refresh_mv_revenue()"

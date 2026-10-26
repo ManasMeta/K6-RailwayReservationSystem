@@ -69,7 +69,7 @@ SIGNUP = {"email": "asha@example.com", "password": "correct horse", "full_name":
 
 
 def test_signup_returns_token_and_stores_only_a_hash(client):
-    connection = _fake_connection({"user_id": 7}, None, _user_row())
+    connection = _fake_connection({"user_id": 7}, _user_row())
 
     res = client.post("/api/v1/auth/signup", json=SIGNUP)
 

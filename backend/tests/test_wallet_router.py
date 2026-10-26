@@ -5,11 +5,11 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
+import app.modules.wallet.router as wallet_router
 from app.core.auth import get_current_user_id
 from app.core.database import get_db_connection
 from app.main import app
 from app.modules.wallet.service import IdempotencyConflict
-import app.modules.wallet.router as wallet_router
 
 
 @pytest.fixture

@@ -30,7 +30,7 @@ def client():
 
 
 def test_prepare_chart_returns_summary(client, monkeypatch):
-    monkeypatch.setattr(chart_router.chart_service, "prepare_chart", lambda conn, run_id: SUMMARY)
+    monkeypatch.setattr(chart_router.chart_service, "prepare_chart", lambda conn, run_id, user_id=None: SUMMARY)
     response = client.post("/api/v1/ops/runs/7/chart")
     assert response.status_code == 200
     assert response.json()["promoted"] == 2
@@ -38,7 +38,7 @@ def test_prepare_chart_returns_summary(client, monkeypatch):
 
 
 def test_prepare_chart_on_cancelled_run_is_409(client, monkeypatch):
-    def fail(conn, run_id):
+    def fail(conn, run_id, user_id=None):
         raise OperationsError(409, "This run is already cancelled", "RUN_ALREADY_CANCELLED")
 
     monkeypatch.setattr(chart_router.chart_service, "prepare_chart", fail)
@@ -55,7 +55,7 @@ def test_get_chart_returns_entries(client, monkeypatch):
 
 
 def test_get_chart_before_it_is_prepared_is_404(client, monkeypatch):
-    def fail(conn, run_id):
+    def fail(conn, run_id, user_id=None):
         raise OperationsError(404, "The chart is not prepared yet", "CHART_NOT_PREPARED")
 
     monkeypatch.setattr(chart_router.chart_service, "get_chart", fail)

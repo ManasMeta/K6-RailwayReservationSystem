@@ -109,6 +109,7 @@ def test_create_mock_topup_replays_existing_transaction():
 
 def test_create_mock_topup_raises_conflict_on_mismatched_amount():
     import pytest
+
     from app.modules.wallet.service import IdempotencyConflict, create_mock_topup
 
     connection = MagicMock()

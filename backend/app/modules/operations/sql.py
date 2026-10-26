@@ -45,9 +45,10 @@ ADD_EVENT = """
 COUNT_LIVE_PASSENGERS = """
     SELECT count(*) AS n
     FROM reservation_passengers rp
-    JOIN reservations r ON r.pnr = rp.pnr
-    WHERE r.train_id = %(train_id)s AND r.run_date = %(run_date)s
-      AND rp.current_status <> 'CANCELLED'
+    JOIN reservations r ON r.reservation_id = rp.reservation_id
+    JOIN trains t ON t.train_no = r.train_no
+    WHERE t.train_id = %(train_id)s AND r.run_date = %(run_date)s
+      AND rp.current_status NOT IN ('CANCELLED', 'EXPIRED')
 """
 
 # The database trigger on train_runs cancels every passenger and starts the refunds.
@@ -64,6 +65,6 @@ REFUNDS_JUST_MADE = """
     SELECT COALESCE(SUM(f.amount), 0) AS total
     FROM refunds f
     WHERE f.created_at >= now()
-      AND f.pnr IN (SELECT pnr FROM reservations
-                    WHERE train_id = %(train_id)s AND run_date = %(run_date)s)
+      AND f.pnr IN (SELECT r.pnr FROM reservations r JOIN trains t ON t.train_no = r.train_no
+                    WHERE t.train_id = %(train_id)s AND r.run_date = %(run_date)s)
 """

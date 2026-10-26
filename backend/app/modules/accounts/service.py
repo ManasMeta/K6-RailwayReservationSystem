@@ -37,11 +37,8 @@ def _token_response(row: dict) -> dict:
 def signup(connection: Connection, data: SignupRequest) -> dict:
     password_hash = bcrypt.hashpw(data.password.encode("utf-8"), bcrypt.gensalt()).decode("ascii")
     try:
-        user_id = connection.execute(
-            sql.INSERT_USER, (data.email, password_hash, data.full_name, data.phone)
-        ).fetchone()["user_id"]
-        connection.execute(sql.INSERT_PASSENGER_ROLE, (user_id,))
-        row = connection.execute(sql.GET_USER_BY_ID, (user_id,)).fetchone()
+        connection.execute(sql.REGISTER, (data.email, password_hash, data.full_name, data.phone))
+        row = connection.execute(sql.GET_USER_BY_EMAIL, (data.email,)).fetchone()
         connection.commit()
     except UniqueViolation as exc:
         connection.rollback()
