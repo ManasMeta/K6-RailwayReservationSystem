@@ -12,10 +12,12 @@ BEGIN
     FOR p IN
         SELECT rp.passenger_id
         FROM reservation_passengers rp
-        JOIN reservations r ON r.pnr = rp.pnr
-        WHERE r.train_id = NEW.train_id
+        JOIN reservations r ON r.reservation_id = rp.reservation_id
+        JOIN trains t ON t.train_no = r.train_no
+        WHERE t.train_id = NEW.train_id
           AND r.run_date = NEW.run_date
-          AND rp.current_status <> 'CANCELLED'
+          AND rp.current_status NOT IN ('CANCELLED', 'EXPIRED')
+          AND r.status IN ('CONFIRMED', 'PARTIALLY_CANCELLED', 'PENDING_PAYMENT')
         ORDER BY rp.passenger_id
     LOOP
         PERFORM cancel_passenger(p.passenger_id, 'Train cancelled by railway', true);

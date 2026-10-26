@@ -37,13 +37,12 @@ DECLARE
         SELECT rp.passenger_id,
                rp.berth_preference,
                r.class_code,
-               (SELECT ts.seq FROM train_stops ts
-                 WHERE ts.train_id = r.train_id AND ts.station_id = r.from_station_id) AS from_seq,
-               (SELECT ts.seq FROM train_stops ts
-                 WHERE ts.train_id = r.train_id AND ts.station_id = r.to_station_id)   AS to_seq
+               r.from_seq,
+               r.to_seq
           FROM reservation_passengers rp
-          JOIN reservations r ON r.pnr = rp.pnr
-         WHERE r.train_id = cp_train
+          JOIN reservations r ON r.reservation_id = rp.reservation_id
+          JOIN trains t ON t.train_no = r.train_no
+         WHERE t.train_id = cp_train
            AND r.run_date = cp_date
            AND r.status IN ('CONFIRMED', 'PARTIALLY_CANCELLED')
            AND rp.current_status IN ('RAC', 'WL')
@@ -78,7 +77,7 @@ BEGIN
     FOR v_pass IN c_waiting(v_run.train_id, v_run.run_date) LOOP
         v_waiting := v_waiting + 1;
         FOR v_berth IN
-            SELECT fb.berth_id, fb.coach_id, fb.berth_number
+            SELECT fb.berth_id, fb.coach_code, fb.berth_number, fb.berth_type
               FROM free_berths(v_run.train_id, v_run.run_date, v_pass.from_seq, v_pass.to_seq,
                                v_pass.class_code) fb
              ORDER BY (fb.berth_type = v_pass.berth_preference) DESC NULLS LAST,
@@ -93,10 +92,10 @@ BEGIN
                         v_pass.passenger_id, 'CNF');
 
                 UPDATE reservation_passengers
-                   SET current_status = 'CNF',
-                       coach_id = v_berth.coach_id, berth_id = v_berth.berth_id,
-                       berth_no = v_berth.berth_number,
-                       rac_number = NULL, wl_number = NULL
+                   SET current_status = 'CNF', booking_status = 'CNF',
+                       coach_code = v_berth.coach_code, berth_id = v_berth.berth_id,
+                       berth_number = v_berth.berth_number, berth_type = v_berth.berth_type,
+                       rac_number = NULL, wl_number = NULL, updated_at = now()
                  WHERE passenger_id = v_pass.passenger_id;
 
                 v_promoted := v_promoted + 1;
@@ -113,12 +112,11 @@ BEGIN
     RETURNING chart_id INTO v_chart_id;
 
     INSERT INTO chart_entries (chart_id, passenger_id, coach_code, berth_no, berth_type, quota_code)
-    SELECT v_chart_id, rp.passenger_id, co.coach_code, rp.berth_no, b.berth_type, r.quota_code
+    SELECT v_chart_id, rp.passenger_id, rp.coach_code, rp.berth_number, rp.berth_type, r.quota_code
       FROM reservation_passengers rp
-      JOIN reservations r ON r.pnr = rp.pnr
-      LEFT JOIN coaches co ON co.coach_id = rp.coach_id
-      LEFT JOIN berths  b  ON b.berth_id  = rp.berth_id
-     WHERE r.train_id = v_run.train_id
+      JOIN reservations r ON r.reservation_id = rp.reservation_id
+      JOIN trains t ON t.train_no = r.train_no
+     WHERE t.train_id = v_run.train_id
        AND r.run_date = v_run.run_date
        AND r.status IN ('CONFIRMED', 'PARTIALLY_CANCELLED')   -- unpaid bookings are not on the chart
        AND rp.current_status IN ('CNF', 'RAC', 'WL')

@@ -10,8 +10,14 @@ SELECT pg_advisory_xact_lock(hashtext(%s || ':' || %s || ':' || %s));
 
 SQL_GET_STATION_STOP_SEQS = """
 SELECT
-    (SELECT seq FROM train_stops WHERE train_no = %s AND station_code = %s) AS from_seq,
-    (SELECT seq FROM train_stops WHERE train_no = %s AND station_code = %s) AS to_seq;
+    (SELECT ts.seq FROM train_stops ts
+       JOIN trains t ON t.train_id = ts.train_id
+       JOIN stations s ON s.station_id = ts.station_id
+      WHERE t.train_no = %s AND s.station_code = %s) AS from_seq,
+    (SELECT ts.seq FROM train_stops ts
+       JOIN trains t ON t.train_id = ts.train_id
+       JOIN stations s ON s.station_id = ts.station_id
+      WHERE t.train_no = %s AND s.station_code = %s) AS to_seq;
 """
 
 SQL_INSERT_RESERVATION = """
@@ -153,8 +159,8 @@ SELECT
     created_at,
     updated_at
 FROM reservations
-WHERE (%s IS NULL OR user_id = %s)
-  AND (%s IS NULL OR status = %s)
+WHERE (%s::bigint IS NULL OR user_id = %s::bigint)
+  AND (%s::text IS NULL OR status = %s::text)
 ORDER BY created_at DESC
 LIMIT %s OFFSET %s;
 """
@@ -162,8 +168,8 @@ LIMIT %s OFFSET %s;
 SQL_COUNT_USER_RESERVATIONS = """
 SELECT COUNT(*)
 FROM reservations
-WHERE (%s IS NULL OR user_id = %s)
-  AND (%s IS NULL OR status = %s);
+WHERE (%s::bigint IS NULL OR user_id = %s::bigint)
+  AND (%s::text IS NULL OR status = %s::text);
 """
 
 SQL_CANCEL_PASSENGER = """

@@ -16,7 +16,7 @@ WITH paid AS (
                       WHERE f.pnr = r.pnr AND f.status = 'COMPLETED'), 0) AS refunded
       FROM reservations r
      WHERE r.status IN ('CONFIRMED', 'PARTIALLY_CANCELLED')
-        OR EXISTS (SELECT 1 FROM cancellations c WHERE c.pnr = r.pnr)
+        OR EXISTS (SELECT 1 FROM cancellations c WHERE c.reservation_id = r.reservation_id)
 )
 SELECT GROUPING(day, class_code)                       AS grouping_level,
        day,
