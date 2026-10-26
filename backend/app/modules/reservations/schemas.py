@@ -95,6 +95,7 @@ class ReservationResponse(BaseModel):
     pnr: str
     user_id: int
     train_no: str
+    train_name: Optional[str] = None
     run_date: date
     from_station_code: str
     to_station_code: str

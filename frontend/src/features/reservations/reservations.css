@@ -59,11 +59,15 @@
   vertical-align: middle;
 }
 
+/* The animation must end on transform: none. Any other transform value, even translateY(0), makes
+   the animated element the containing block of position: fixed children, so the cancel dialog's
+   full-screen overlay would stretch to the height of the page and its dialog end up off screen. */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 
 .reservations-ui .animate-fade-in {
-  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  /* no fill-mode: a filled transform keeps the element a containing block (see above) */
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }

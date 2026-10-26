@@ -119,4 +119,47 @@ BEGIN
     END IF;
 END $$;
 
+-- 6. availability_grid(): one row per date and class, typed as declared, and the status follows the berths
+DO $$
+DECLARE
+    v_train BIGINT;
+    v_date DATE := current_date + 20;
+    v_rows INT;
+    v_berth BIGINT;
+    r RECORD;
+BEGIN
+    SELECT train_id INTO v_train FROM trains WHERE train_no = '12301';
+    PERFORM generate_train_consist_coaches(v_train);
+
+    SELECT count(*) INTO v_rows FROM availability_grid('12301', 'HWH', 'NDLS', v_date, 6, 'GN');
+    ASSERT v_rows = 6 * (SELECT count(DISTINCT class_code) FROM coaches WHERE train_id = v_train),
+        format('expected 6 dates x classes, got %s rows', v_rows);
+
+    SELECT * INTO r FROM availability_grid('12301', 'HWH', 'NDLS', v_date, 1, 'GN') WHERE class_code = '3A';
+    ASSERT r.status = 'AVAILABLE' AND r.available_count = 256 AND r.fare > 0,
+        format('empty 3A should be AVAILABLE with 256 berths and a fare, got %s / %s / %s', r.status, r.available_count, r.fare);
+
+    -- sell every 3A berth for the whole route on that date: the grid says RAC, then WL once 20 are waiting
+    INSERT INTO berth_allocations (berth_id, run_date, stops)
+    SELECT b.berth_id, v_date, int4range(1, 4, '[)')
+      FROM berths b JOIN coaches c USING (coach_id) WHERE c.train_id = v_train AND c.class_code = '3A';
+    SELECT * INTO r FROM availability_grid('12301', 'HWH', 'NDLS', v_date, 1, 'GN') WHERE class_code = '3A';
+    ASSERT r.status = 'RAC' AND r.available_count = 0 AND r.rac_count = 1,
+        format('full 3A should be RAC with next RAC place 1, got %s / %s / %s', r.status, r.available_count, r.rac_count);
+
+    -- a segment nobody holds is still available (segment-wise sales)
+    DELETE FROM berth_allocations WHERE run_date = v_date;
+    SELECT berth_id INTO v_berth FROM berths b JOIN coaches c USING (coach_id)
+     WHERE c.train_id = v_train AND c.class_code = '3A' ORDER BY berth_id LIMIT 1;
+    INSERT INTO berth_allocations (berth_id, run_date, stops) VALUES (v_berth, v_date, int4range(1, 2, '[)'));
+    SELECT * INTO r FROM availability_grid('12301', 'DDU', 'NDLS', v_date, 1, 'GN') WHERE class_code = '3A';
+    ASSERT r.available_count = 256, 'a berth sold only for HWH-DDU must still be free for DDU-NDLS';
+    SELECT * INTO r FROM availability_grid('12301', 'HWH', 'NDLS', v_date, 1, 'GN') WHERE class_code = '3A';
+    ASSERT r.available_count = 255, 'the same berth is not free for the whole route';
+
+    -- an unknown train or a backwards journey returns nothing instead of failing
+    ASSERT NOT EXISTS (SELECT 1 FROM availability_grid('00000', 'HWH', 'NDLS', v_date));
+    ASSERT NOT EXISTS (SELECT 1 FROM availability_grid('12301', 'NDLS', 'HWH', v_date));
+END $$;
+
 ROLLBACK;

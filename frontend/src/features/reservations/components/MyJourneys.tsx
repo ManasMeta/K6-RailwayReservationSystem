@@ -248,7 +248,7 @@ export const MyJourneys: React.FC<MyJourneysProps> = ({ onNewBookingClick, onPay
                   <span className="text-slate-400">Train Details:</span>
                   <p className="font-semibold text-sm text-slate-100 flex items-center gap-1.5 mt-0.5">
                     <Train className="w-4 h-4 text-indigo-400" />
-                    <span>{res.train_no} · {res.train_name || 'Express'}</span>
+                    <span>{res.train_name ? `${res.train_no} · ${res.train_name}` : res.train_no}</span>
                   </p>
                 </div>
 

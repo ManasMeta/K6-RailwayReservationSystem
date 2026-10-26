@@ -232,7 +232,7 @@ export default function AccountsPage() {
 
   const styles = `
     * { box-sizing: border-box; }
-    .yatrio { min-height: 100vh; background: #f3f6fc; color: #18233c; font-family: Inter, system-ui, Arial, sans-serif; }
+    .yatrio { min-height: calc(100vh - 3.2rem); background: #f3f6fc; color: #18233c; font-family: Inter, system-ui, Arial, sans-serif; }
     .y-nav { background: #102b55; color: white; padding: 17px 5%; display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap; }
     .y-brand { font-size: 25px; font-weight: 800; letter-spacing: -.7px; }
     .y-brand span { color: #61d8c4; }
@@ -276,17 +276,17 @@ export default function AccountsPage() {
   return (
     <div className="yatrio">
       <style>{styles}</style>
-      <header className="y-nav">
-        <div className="y-brand">Yatrio<span>.</span><small>RAILWAY RESERVATION</small></div>
-        {user && (
+      {user && (
+        <header className="y-nav">
+          <div className="y-brand">Your account</div>
           <nav className="y-nav-actions" aria-label="Account navigation">
             <button className={page === 'dashboard' ? 'active' : ''} onClick={() => setPage('dashboard')}>Dashboard</button>
             <button className={page === 'profile' ? 'active' : ''} onClick={openProfile}>My Profile</button>
             <button className={page === 'passengers' ? 'active' : ''} onClick={() => { setMessage(''); setPage('passengers'); }}>Passengers</button>
             <button onClick={logout}>Log out</button>
           </nav>
-        )}
-      </header>
+        </header>
+      )}
 
       <main className="y-main">
         {restoring && <p className="y-muted" role="status">Restoring your session…</p>}
